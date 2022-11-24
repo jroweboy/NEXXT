@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2021/09/30 19:25:23.956.cpp,D:\NEXXT\srz\TABPGDLG.cpp=D:\NEXXT\srz\UnitPreferences.cpp</Transaction>
+    <Transaction>2021/09/30 19:25:23.956.h,D:\NEXXT\srz\TABPGDLG.h=D:\NEXXT\srz\UnitPreferences.h</Transaction>
+    <Transaction>2021/09/30 19:25:23.956.dfm,D:\NEXXT\srz\TABPGDLG.dfm=D:\NEXXT\srz\UnitPreferences.dfm</Transaction>
+    <Transaction>2002/01/05 12:35:19.119.cpp,D:\NEXXT\srz\ABOUT.cpp=</Transaction>
+    <Transaction>2002/01/05 12:35:19.119.dfm,D:\NEXXT\srz\ABOUT.dfm=</Transaction>
+    <Transaction>2002/01/16 10:19:54.463.cpp,D:\NEXXT\srz\Unit2.cpp=D:\NEXXT\srz\UnitBrush.cpp</Transaction>
+    <Transaction>2002/01/16 10:19:54.515.h,D:\NEXXT\srz\Unit2.h=D:\NEXXT\srz\UnitBrush.h</Transaction>
+    <Transaction>2002/01/16 10:19:54.515.dfm,D:\NEXXT\srz\Unit2.dfm=D:\NEXXT\srz\UnitBrush.dfm</Transaction>
+    <Transaction>2002/01/16 10:45:48.537.cpp,D:\NEXXT\srz\Unit1.cpp=D:\NEXXT\srz\UnitBrushMask.cpp</Transaction>
+    <Transaction>2002/01/16 10:45:48.537.h,D:\NEXXT\srz\Unit1.h=D:\NEXXT\srz\UnitBrushMask.h</Transaction>
+    <Transaction>2002/01/17 21:26:11.929.cpp,D:\NEXXT\srz\ABOUT.cpp=</Transaction>
+    <Transaction>2002/01/17 21:26:11.929.dfm,D:\NEXXT\srz\ABOUT.dfm=</Transaction>
+    <Transaction>2002/01/17 21:26:15.432.dfm,D:\NEXXT\srz\ABOUT.dfm=</Transaction>
+    <Transaction>2002/01/17 21:26:15.433.dfm,D:\NEXXT\srz\ABOUT.dfm=</Transaction>
+    <Transaction>2002/01/17 21:26:17.955.h,D:\NEXXT\srz\ABOUT.h=</Transaction>
+    <Transaction>2002/01/17 21:26:17.955.dfm,D:\NEXXT\srz\ABOUT.dfm=</Transaction>
+    <Transaction>2002/01/17 21:29:31.639.cpp,D:\NEXXT\srz\ABOUT.cpp=D:\NEXXT\srz\About.cpp</Transaction>
+    <Transaction>2002/01/17 21:29:31.639.h,D:\NEXXT\srz\ABOUT.h=D:\NEXXT\srz\About.h</Transaction>
+    <Transaction>2002/01/17 21:29:31.639.dfm,D:\NEXXT\srz\ABOUT.dfm=D:\NEXXT\srz\About.dfm</Transaction>
+    <Transaction>2002/01/18 17:34:33.153.bdsproj,D:\NEXXT\srz\NESst.bdsproj=D:\NEXXT\srz\NEXXT.bdsproj</Transaction>
+    <Transaction>2022/09/23 15:00:07.622.cpp,D:\NEXXT\srz\Unit1.cpp=D:\NEXXT\srz\UnitNavigator.cpp</Transaction>
+    <Transaction>2022/09/23 15:00:07.626.h,D:\NEXXT\srz\Unit1.h=D:\NEXXT\srz\UnitNavigator.h</Transaction>
+    <Transaction>2022/09/23 15:01:00.892.cpp,D:\NEXXT\srz\Unit1.cpp=D:\NEXXT\srz\UnitNavigator.cpp</Transaction>
+    <Transaction>2022/09/23 15:01:00.893.h,D:\NEXXT\srz\Unit1.h=D:\NEXXT\srz\UnitNavigator.h</Transaction>
+    <Transaction>2022/09/23 15:01:00.893.dfm,D:\NEXXT\srz\Unit1.dfm=D:\NEXXT\srz\UnitNavigator.dfm</Transaction>
+    <Transaction>2002/01/08 19:48:56.558.cpp,D:\NEXXT\srz\Unit1.cpp=D:\NEXXT\srz\Unit_threadNav.cpp</Transaction>
+    <Transaction>2002/01/08 19:48:56.558.h,D:\NEXXT\srz\Unit1.h=D:\NEXXT\srz\Unit_threadNav.h</Transaction>
+    <Transaction>2002/01/08 19:49:22.932.cpp,D:\NEXXT\srz\Unit_threadNav.cpp=D:\NEXXT\srz\UnitNavTrhead.cpp</Transaction>
+    <Transaction>2002/01/08 19:49:22.932.h,D:\NEXXT\srz\Unit_threadNav.h=D:\NEXXT\srz\UnitNavTrhead.h</Transaction>
+    <Transaction>2002/01/08 19:49:36.056.cpp,D:\NEXXT\srz\UnitNavTrhead.cpp=D:\NEXXT\srz\UnitNavThread.cpp</Transaction>
+    <Transaction>2002/01/08 19:49:36.056.h,D:\NEXXT\srz\UnitNavTrhead.h=D:\NEXXT\srz\UnitNavThread.h</Transaction>
+    <Transaction>2022/11/20 10:13:57.083.cpp,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\Unit1.cpp=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.cpp</Transaction>
+    <Transaction>2022/11/20 10:13:57.083.h,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\Unit1.h=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.h</Transaction>
+  </Transactions>
+</BorlandProject>

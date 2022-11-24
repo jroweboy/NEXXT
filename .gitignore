@@ -1,0 +1,4 @@
+*.obj
+.vs/
+.vscode/
+__history/
