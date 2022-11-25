@@ -4,35 +4,9 @@
 #ifndef UnitStateH
 #define UnitStateH
 
-// Simple compatibility layer for AnsiString that uses a c++ std::string under the covers.
-// This allows me to develop using modern c++ tooling while still letting it build in Borland
-#ifdef __BORLANDC__
-#include <vcl.h>
-#else
-#include <string>
-
-typedef std::string AnsiString;
-// Really terrible way to rename the AnsiString Length to the cpp string length
-#define Length length
-// wrapper definition for IntToStr to use std::to_string();
-AnsiString IntToStr(int val) {
-    return std::to_string(val);
-}
-
-#endif
-
 #include <stdint.h>
 #include <vector>
 #include "UnitStatePrivate.h"
-
-// Common typedefs that shorten the fullname of various common int types
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-
-typedef int8_t   s8;
-typedef int16_t  s16;
-typedef int32_t  s32;
 
 // These are pointers that track the current state so that the rest of the program can transparently
 // access the data without having to go through state.
@@ -41,10 +15,10 @@ extern u8* nameTable;
 extern u8* attrTable;
 extern u8* chr;
 extern u8* metaSprites;
-extern u32 nameTableWidth;
-extern u32 nameTableHeight;
-extern s32 spriteGridX;
-extern s32 spriteGridY;
+extern WeakRef<u32> nameTableWidth;
+extern WeakRef<u32> nameTableHeight;
+extern WeakRef<s32> spriteGridX;
+extern WeakRef<s32> spriteGridY;
 extern AnsiString* metaSpriteNames;
 
 class State {
@@ -119,21 +93,21 @@ public:
         AnsiString metaSpriteNames[256];
 
         // Stores a list of all the values that we are tracking in the state
-        std::vector<Value*> fields;
+        std::vector<ValueSerialize::Interface*> fields;
 
         Values() : bgPal(), chr(), metaSprites(), nameTableWidth(32), nameTableHeight(30),
             spriteGridX(0), spriteGridY(0), nameTable(), attrTable(), metaSpriteNames(), fields() {
-
-            fields.push_back(new FixedLen<u8>(bgPal, 4 * 16));
-            fields.push_back(new FixedLen<u8>(chr, 8192));
-            fields.push_back(new FixedLen<u8>(metaSprites, 256 * 64 * 4));
-            fields.push_back(new Single<u32>(&nameTableWidth, ::nameTableWidth));
-            fields.push_back(new Single<u32>(&nameTableHeight, ::nameTableHeight));
-            fields.push_back(new Single<s32>(&spriteGridX, ::spriteGridX));
-            fields.push_back(new Single<s32>(&spriteGridY, ::spriteGridY));
-            fields.push_back(new VariableLen<u8>(&nameTable));
-            fields.push_back(new VariableLen<u8>(&attrTable));
-            //fields.push_back(new FixedLen<AnsiString>(metaSpriteNames, 256));
+            using namespace ValueSerialize;
+            fields.push_back(new Fixed<u8, sizeof(bgPal)>(bgPal));
+            fields.push_back(new Fixed<u8, sizeof(chr)>(chr));
+            fields.push_back(new Fixed<u8, sizeof(metaSprites)>(metaSprites));
+            fields.push_back(new Fixed<u32>(&nameTableWidth));
+            fields.push_back(new Fixed<u32>(&nameTableHeight));
+            fields.push_back(new Fixed<s32>(&spriteGridX));
+            fields.push_back(new Fixed<s32>(&spriteGridY));
+            fields.push_back(new Resizeable<std::vector<u8> >(&nameTable));
+            fields.push_back(new Resizeable<std::vector<u8> >(&attrTable));
+            fields.push_back(new Fixed<Resizeable<AnsiString>, 256>(new Resizeable<AnsiString>(metaSpriteNames)));
         }
 
         ~Values() {

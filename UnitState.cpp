@@ -20,10 +20,10 @@ u8* attrTable;
 u8* chr;
 u8* metaSprites;
 AnsiString* metaSpriteNames;
-u32 nameTableWidth;
-u32 nameTableHeight;
-s32 spriteGridX;
-s32 spriteGridY;
+WeakRef<u32> nameTableWidth;
+WeakRef<u32> nameTableHeight;
+WeakRef<s32> spriteGridX;
+WeakRef<s32> spriteGridY;
 static inline u32 NmtIdx(u32 stride, u32 row, u32 col) {
     return row * stride + col;
 }
@@ -83,8 +83,8 @@ void State::SetUndo() {
     }
 
     for (u32 i = 0; i < curr->fields.size(); ++i) {
-        Value* current = curr->fields[i];
-        Value* previous = prev->fields[i];
+        ValueSerialize::Interface* current = curr->fields[i];
+        ValueSerialize::Interface* previous = prev->fields[i];
         current->CreateDiff(patch, *previous);
     }
 
@@ -186,8 +186,8 @@ void State::ResizeNameTable(u32 width, u32 height) {
 
     u32 w = std::min(width, prevWidth);
     u32 h = std::min(height, prevHeight);
-    for (int row = 0; row < h; ++row) {
-        for (int col = 0; col < w; ++col) {
+    for (u32 row = 0; row < h; ++row) {
+        for (u32 col = 0; col < w; ++col) {
             new_nmt[NmtIdx(width, row, col)] = old_nmt[NmtIdx(prevWidth, row, col)];
         }
     }
@@ -198,7 +198,7 @@ void State::ResizeNameTable(u32 width, u32 height) {
 void State::ApplyStateChange(const std::vector<u8>& patch) {
     std::size_t patchIdx = 0;
     for (u32 i = 0; i < curr->fields.size(); ++i) {
-        Value* current = curr->fields[i];
+        ValueSerialize::Interface* current = curr->fields[i];
         current->ApplyDiff(patch, patchIdx);
     }
 }
@@ -327,6 +327,10 @@ void setup() {
     chr             = state->curr->chr;
     metaSprites     = state->curr->metaSprites;
     metaSpriteNames = state->curr->metaSpriteNames;
+    spriteGridX.Set(&state->curr->spriteGridX);
+    spriteGridY.Set(&state->curr->spriteGridX);
+    nameTableWidth.Set(&state->curr->nameTableWidth);
+    nameTableHeight.Set(&state->curr->nameTableHeight);
 }
 
 void test_RLE() {
