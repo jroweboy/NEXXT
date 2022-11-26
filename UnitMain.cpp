@@ -34,22 +34,6 @@ Graphics::TBitmap *BufBmpName;
 Graphics::TBitmap *BufBmpTiles;
 extern Graphics::TBitmap *bufBmp;
 
-// State tracking fields
-UndoState* global_state;
-UndoState* checkpoint;
-
-// Each of these are references to a field in `global_state` or whatever
-// the data its pointing to is.
-unsigned char* bgPal;
-unsigned char* nameTable;
-unsigned char* attrTable;
-unsigned char* chr;
-unsigned char* metaSprites;
-AnsiString* metaSpriteNames;
-int nameTableWidth;
-int nameTableHeight;
-
-
 bool openByFileDone=false;
 bool bProcessDrawNavOn=false;
 int iGlobalAlpha;
@@ -84,11 +68,6 @@ int palColHover;
 int colHover;
 int palDragColor;
 int palBank;
-
-unsigned char chr[8192];
-unsigned char chrBuf[8192]; //FG: in preparation for stroke-oriented ink algo
-unsigned char chrBufFill[8192]; //test: clean memory buffer
-unsigned char chrCopy[4096];
 
 unsigned char subpalCopy[4]; //for copying a single subpalette
 
@@ -135,11 +114,6 @@ int typeInASCIIOffset;
 
 int prevMouseY;
 int prevMouseX; //FG: reserved for potential features to come
-
-unsigned char metaSprites[256*64*4];
-unsigned char undoMetaSprites[256*64*4];
-unsigned char checkpointMetaSprites[256*64*4];
-unsigned char undoCheckpointMetaSprites[256*64*4];
 
 //BROKE STUDIO
 AnsiString metaSpriteBankName;

@@ -144,8 +144,6 @@ void State::ResizeNameTable(u32 width, u32 height) {
 
     curr->nameTableWidth = width;
     curr->nameTableHeight = height;
-    nameTableWidth = width;
-    nameTableHeight = height;
 
     // now copy the data from current into a new vector with the old nametable placed at the top left corner
     std::vector<u8> new_nmt;
@@ -258,10 +256,10 @@ void SwapGlobalState(State** global, State** checkpoint) {
     chr             = tmp->curr->chr;
     metaSprites     = tmp->curr->metaSprites;
     metaSpriteNames = tmp->curr->metaSpriteNames;
-    nameTableWidth = tmp->curr->nameTableWidth;
-    nameTableHeight = tmp->curr->nameTableHeight;
-    spriteGridX = tmp->curr->spriteGridX;
-    spriteGridY = tmp->curr->spriteGridY;
+    nameTableWidth.Set(&tmp->curr->nameTableWidth);
+    nameTableHeight.Set(&tmp->curr->nameTableHeight);
+    spriteGridX.Set(&tmp->curr->spriteGridX);
+    spriteGridY.Set(&tmp->curr->spriteGridY);
 }
 
 #ifndef __BORLANDC__
