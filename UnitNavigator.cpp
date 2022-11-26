@@ -7,6 +7,7 @@
 #include "UnitMain.h"
 #include "UnitNavigator.h"
 #include "UnitNavThread.h"
+#include "WeakRef.h"
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
@@ -33,8 +34,8 @@ extern int nameYC;
 extern int nullTile;
 extern int tileActive;
 
-extern int nameTableWidth;
-extern int nameTableHeight;
+extern WeakRef<s32> nameTableWidth;
+extern WeakRef<s32> nameTableHeight;
 
 extern int tileSelRectWdt;
 extern int tileSelRectHgt;
@@ -1110,6 +1111,7 @@ void __fastcall TFormNavigator::FormCreate(TObject *Sender)
 {
 
 	bufBmp=new Graphics::TBitmap();
+	unsigned int width = nameTableWidth*8;
 	bufBmp->SetSize(nameTableWidth*8,nameTableHeight*8);
 	bufBmp->PixelFormat=pf4bit;
 

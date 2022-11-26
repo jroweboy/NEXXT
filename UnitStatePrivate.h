@@ -238,36 +238,4 @@ namespace ValueSerialize {
         AnsiString* data;
     };
 }
-
-template <typename T>
-class WeakRef {
-public:
-    WeakRef() : backing(NULL) {}
-    WeakRef(T* _backing) : backing(_backing) {}
-
-    WeakRef<T>& operator=(WeakRef<T> other) {
-        swap(*this, other);
-        return *this;
-    }
-    WeakRef<T>& operator=(T other) {
-        *this->backing = other;
-        return *this;
-    }
-
-    friend void swap(WeakRef& left, WeakRef& right) {
-        std::swap(*left.backing, *right.backing);
-    }
-
-    operator T& () { return *backing; }
-    T* operator &() { return backing; }
-
-    T operator*() { return *backing; }
-    const T operator*() const { return *backing; }
-
-    inline void Set(T* newpointer) { backing = newpointer; }
-
-private:
-    T* backing;
-};
-
 #endif // _UNIT_STATE_PRIVATE_H

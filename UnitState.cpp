@@ -20,8 +20,8 @@ u8* attrTable;
 u8* chr;
 u8* metaSprites;
 AnsiString* metaSpriteNames;
-WeakRef<u32> nameTableWidth;
-WeakRef<u32> nameTableHeight;
+WeakRef<s32> nameTableWidth;
+WeakRef<s32> nameTableHeight;
 WeakRef<s32> spriteGridX;
 WeakRef<s32> spriteGridY;
 static inline u32 NmtIdx(u32 stride, u32 row, u32 col) {
@@ -292,6 +292,15 @@ void setup() {
     nameTableHeight.Set(&state->curr->nameTableHeight);
 }
 
+void test_weak_ref() {
+    setup();
+
+    int w = nameTableWidth;
+    TEST_CHECK_(w == 32, "nameTableWidth should decay into an int: %d expected: %d ", w, 32);
+
+
+}
+
 void test_RLE() {
     setup();
 }
@@ -461,6 +470,7 @@ void test_metaspritename() {
 }
 
 TEST_LIST = {
+    { "WeakRef", test_weak_ref },
     { "RLE", test_RLE },
     { "Grid Sprite X/Y", test_grid_sprite },
     { "NameTable", test_nametable },

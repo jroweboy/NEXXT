@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <vector>
 #include "UnitStatePrivate.h"
+#include "WeakRef.h"
 
 // These are pointers that track the current state so that the rest of the program can transparently
 // access the data without having to go through state.
@@ -15,8 +16,8 @@ extern u8* nameTable;
 extern u8* attrTable;
 extern u8* chr;
 extern u8* metaSprites;
-extern WeakRef<u32> nameTableWidth;
-extern WeakRef<u32> nameTableHeight;
+extern WeakRef<s32> nameTableWidth;
+extern WeakRef<s32> nameTableHeight;
 extern WeakRef<s32> spriteGridX;
 extern WeakRef<s32> spriteGridY;
 extern AnsiString* metaSpriteNames;
@@ -82,8 +83,8 @@ public:
         u8 bgPal[4 * 16];
         u8 chr[8192];
         u8 metaSprites[256 * 64 * 4];
-        u32 nameTableWidth;
-        u32 nameTableHeight;
+		s32 nameTableWidth;
+		s32 nameTableHeight;
         s32 spriteGridX;
         s32 spriteGridY;
         std::vector<u8> nameTable;
@@ -99,8 +100,8 @@ public:
             fields.push_back(new Fixed<u8, sizeof(bgPal)>(bgPal));
             fields.push_back(new Fixed<u8, sizeof(chr)>(chr));
             fields.push_back(new Fixed<u8, sizeof(metaSprites)>(metaSprites));
-            fields.push_back(new Fixed<u32>(&nameTableWidth));
-            fields.push_back(new Fixed<u32>(&nameTableHeight));
+			fields.push_back(new Fixed<s32>(&nameTableWidth));
+            fields.push_back(new Fixed<s32>(&nameTableHeight));
             fields.push_back(new Fixed<s32>(&spriteGridX));
             fields.push_back(new Fixed<s32>(&spriteGridY));
             fields.push_back(new Resizeable<std::vector<u8> >(&nameTable));
