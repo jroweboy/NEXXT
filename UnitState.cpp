@@ -85,42 +85,9 @@ void State::SetUndo() {
     for (u32 i = 0; i < curr->fields.size(); ++i) {
         ValueSerialize::Interface* current = curr->fields[i];
         ValueSerialize::Interface* previous = prev->fields[i];
-        current->CreateDiff(patch, *previous);
+        current->CreateDiff(patch, previous);
     }
 
-    // Store the diff for each of the fixed length fields
-    //CreateDiffFixed(patch.bgPal,       sizeof(prev->bgPal),       prev->bgPal,       curr->bgPal);
-    //CreateDiffFixed(patch.chr,         sizeof(prev->chr),         prev->chr,         curr->chr);
-    //CreateDiffFixed(patch.metaSprites, sizeof(prev->metaSprites), prev->metaSprites, curr->metaSprites);
-
-    //// Handle single vector resizable fields
-
-    //CreateDiffVariableLen(patch.nameTable, 
-    //    prev->nameTableWidth * prev->nameTableHeight, &prev->nameTable[0],
-    //    curr->nameTableWidth * curr->nameTableHeight, &curr->nameTable[0]);
-    //CreateDiffVariableLen(patch.attrTable, 
-    //    prev->nameTableWidth * prev->nameTableHeight / 4, &prev->attrTable[0],
-    //    curr->nameTableWidth * curr->nameTableHeight / 4, &curr->attrTable[0]);
-
-    //patch.metaSpriteNames.resize(0);
-    //// We are going to handle the metasprite names differently by just looking for which ones changed, and then
-    //// add num of entries, index, len (4 bytes), RLE data to the history for each name that changed.
-    //// This should be pretty efficient since metasprite names don't change often.
-    //for (u32 i = 0; i < 256; i++) {
-    //    // Check to see if the names have changed, if it has, add it to the name diff list
-    //    AnsiString& oldname = prev->metaSpriteNames[i];
-    //    AnsiString& newname = curr->metaSpriteNames[i];
-    //    if (oldname != newname) {
-    //        patch.metaSpriteNames.push_back(i);
-    //        CreateDiffVariableLen(patch.metaSpriteNames, 
-    //            oldname.Length(), reinterpret_cast<const u8*>(oldname.c_str()),
-    //            newname.Length(), reinterpret_cast<const u8*>(newname.c_str()));
-    //    }
-    //}
-    //patch.nameTableWidth = curr->nameTableWidth;
-    //patch.nameTableHeight = curr->nameTableHeight;
-    //patch.spriteGridX = curr->spriteGridX;
-    //patch.spriteGridY = curr->spriteGridY;
     std::vector<u8> rle_patch;
     RLE(rle_patch, patch);
     undoHistory.push_back(rle_patch);
@@ -193,7 +160,6 @@ void State::ResizeNameTable(u32 width, u32 height) {
     }
     curr->nameTable = new_nmt;
 }
-
 
 void State::ApplyStateChange(const std::vector<u8>& patch) {
     std::size_t patchIdx = 0;
@@ -279,13 +245,6 @@ void State::CopyCurrentState() {
     }
 }
 
-void State::SetSpriteGrid(s32 x, s32 y) {
-    state->curr->spriteGridX = x;
-    state->curr->spriteGridY = y;
-    spriteGridX = x;
-    spriteGridY = y;
-}
-
 void SwapGlobalState(State** global, State** checkpoint) {
     // Swap the two state pointers
     State* tmp = *checkpoint;
@@ -328,7 +287,7 @@ void setup() {
     metaSprites     = state->curr->metaSprites;
     metaSpriteNames = state->curr->metaSpriteNames;
     spriteGridX.Set(&state->curr->spriteGridX);
-    spriteGridY.Set(&state->curr->spriteGridX);
+    spriteGridY.Set(&state->curr->spriteGridY);
     nameTableWidth.Set(&state->curr->nameTableWidth);
     nameTableHeight.Set(&state->curr->nameTableHeight);
 }
@@ -341,14 +300,15 @@ void test_grid_sprite() {
     setup();
     state->SetUndo();
 
+    // basic Undo/Redo test for weakref values
+    spriteGridX = 100;
+    spriteGridY = 200;
 
-    // basic Undo/Redo test for palette
-    state->SetSpriteGrid(100, 200);
     state->Undo(1);
-    TEST_CHECK_(spriteGridX == 0, "Sprite Grid X should be reverted to original after Undo: %d expected: %d ", spriteGridX, 0);
+    TEST_CHECK_(spriteGridX == 0, "Sprite Grid X should be reverted to original after Undo: %d expected: %d ", *spriteGridX, 0);
 
     state->Redo(1);
-    TEST_CHECK_(spriteGridX == 100, "Sprite Grid X should be the modified value after Redo: %d expected: %d ", spriteGridX, 100);
+    TEST_CHECK_(spriteGridX == 100, "Sprite Grid X should be the modified value after Redo: %d expected: %d ", *spriteGridX, 100);
 
 }
 
@@ -426,18 +386,18 @@ void test_nametable() {
     // Check that resizing nametables properly works with undo
     state->SetUndo();
     state->ResizeNameTable(320, 300);
-    TEST_CHECK_(nameTableWidth == 320, "Resized nametableWidth is not updated: %d expected %d", nameTableWidth, 320);
-    TEST_CHECK_(nameTableHeight == 300, "Resized nametableHeight is not updated: %d expected %d", nameTableHeight, 300);
+    TEST_CHECK_(nameTableWidth == 320, "Resized nametableWidth is not updated: %d expected %d", *nameTableWidth, 320);
+    TEST_CHECK_(nameTableHeight == 300, "Resized nametableHeight is not updated: %d expected %d", *nameTableHeight, 300);
     // Edit row 2 col 5 to see if it survives the resize from Undo -> Redo
     nameTable[2 * 320 + 5] = 0x25;
 
     state->Undo(1);
-    TEST_CHECK_(nameTableWidth == 32, "Resized nametableWidth is not updated after Undo: %d expected %d", nameTableWidth, 32);
-    TEST_CHECK_(nameTableHeight == 30, "Resized nametableHeight is not updated after Undo: %d expected %d", nameTableHeight, 30);
+    TEST_CHECK_(nameTableWidth == 32, "Resized nametableWidth is not updated after Undo: %d expected %d", *nameTableWidth, 32);
+    TEST_CHECK_(nameTableHeight == 30, "Resized nametableHeight is not updated after Undo: %d expected %d", *nameTableHeight, 30);
     TEST_CHECK_(nameTable[2 * 32 + 5] == 0x00, "Resized nametable after Undo did not revert the value: 0x%02x expected 0x%02x", nameTable[2 * 32 + 5], 0x00);
     state->Redo(1);
-    TEST_CHECK_(nameTableWidth == 320, "Resized nametableWidth is not updated after Redo: %d expected %d", nameTableWidth, 320);
-    TEST_CHECK_(nameTableHeight == 300, "Resized nametableHeight is not updated after Redo: %d expected %d", nameTableHeight, 300);
+    TEST_CHECK_(nameTableWidth == 320, "Resized nametableWidth is not updated after Redo: %d expected %d", *nameTableWidth, 320);
+    TEST_CHECK_(nameTableHeight == 300, "Resized nametableHeight is not updated after Redo: %d expected %d", *nameTableHeight, 300);
     TEST_CHECK_(nameTable[2 * 320 + 5] == 0x25, "Resized nametable after Redo did not revert the value: 0x%02x expected 0x%02x", nameTable[2 * 320 + 5], 0x25);
 
 }
@@ -506,7 +466,7 @@ TEST_LIST = {
     { "NameTable", test_nametable },
     { "Checkpoint", test_checkpoint },
     { "Palette", test_palette },
-    //{ "Metasprite Name", test_metaspritename },
+    { "Metasprite Name", test_metaspritename },
     { NULL, NULL }     /* zeroed record marking the end of the list */
 };
 #endif

@@ -74,8 +74,6 @@ public:
      */
     void CopyCurrentState();
 
-    void SetSpriteGrid(s32 x, s32 y);
-
     class Values {
     public:
         /**
@@ -107,7 +105,7 @@ public:
             fields.push_back(new Fixed<s32>(&spriteGridY));
             fields.push_back(new Resizeable<std::vector<u8> >(&nameTable));
             fields.push_back(new Resizeable<std::vector<u8> >(&attrTable));
-            fields.push_back(new Fixed<Resizeable<AnsiString>, 256>(new Resizeable<AnsiString>(metaSpriteNames)));
+            fields.push_back(new Fixed<AnsiString, 256>(metaSpriteNames));
         }
 
         ~Values() {
