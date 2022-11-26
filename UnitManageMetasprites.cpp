@@ -12,11 +12,10 @@
 TFormManageMetasprites *FormManageMetasprites;
 
 extern AnsiString metaSpriteBankName;
-extern AnsiString metaSpriteNames[256];
-extern AnsiString metaSpriteNamesUndo[256];
+extern AnsiString* metaSpriteNames;
 extern AnsiString tmpMetaSprName;
 extern int metaSpriteActive;
-extern unsigned char metaSprites[];
+extern unsigned char* metaSprites;
 extern bool prefStartShowMM;
 extern bool cueUpdateMM;
 extern bool bSnapToScreen;

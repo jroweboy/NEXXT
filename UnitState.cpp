@@ -28,9 +28,9 @@ static inline u32 NmtIdx(u32 stride, u32 row, u32 col) {
     return row * stride + col;
 }
 
-State::State() : curr(nullptr), prev(nullptr), undoHistory(), undoIndex(0), hasChanges(false) {
-    curr = new Values;
-    prev = new Values;
+State::State() : curr(NULL), prev(NULL), undoHistory(), undoIndex(0), hasChanges(false) {
+	curr = new Values();
+    prev = new Values();
 
     curr->nameTableWidth = 32;
     curr->nameTableHeight = 30;
@@ -68,9 +68,11 @@ State::State(const State& other) {
 }
 
 State::~State() {
-    // i hate that theres no unique_ptr in borland 6
-    delete curr;
-    delete prev;
+	// i hate that theres no unique_ptr in borland 6
+	if (curr)
+		delete curr;
+	if (prev)
+	    delete prev;
 }
 
 void State::SetUndo() {

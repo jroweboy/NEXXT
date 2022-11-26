@@ -1203,10 +1203,6 @@ object FormMain: TFormMain
       OnChange = PageControlEditorChange
       object TabSheetName: TTabSheet
         Caption = '[F1] Screen canvas'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object ImageName: TImage
           Left = 3
           Top = 3

@@ -2,3 +2,8 @@
 .vs/
 .vscode/
 __history/
+*.map
+*.exe
+*.cgl
+*.drc
+*.tds

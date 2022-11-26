@@ -34,5 +34,7 @@
     <Transaction>2002/01/08 19:49:36.056.h,D:\NEXXT\srz\UnitNavTrhead.h=D:\NEXXT\srz\UnitNavThread.h</Transaction>
     <Transaction>2022/11/20 10:13:57.083.cpp,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\Unit1.cpp=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.cpp</Transaction>
     <Transaction>2022/11/20 10:13:57.083.h,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\Unit1.h=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.h</Transaction>
+    <Transaction>2022/11/23 00:05:48.270.cpp,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.cpp=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitState.cpp</Transaction>
+    <Transaction>2022/11/23 00:05:48.271.h,C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitUndo.h=C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src\UnitState.h</Transaction>
   </Transactions>
 </BorlandProject>

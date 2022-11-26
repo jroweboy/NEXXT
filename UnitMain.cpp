@@ -86,6 +86,9 @@ unsigned char attrCopy[NAME_MAX_SIZE];
 
 bool unsavedChanges;
 
+unsigned char chrCopy[8192];
+unsigned char chrBuf[8192];
+unsigned char chrBufFill[8192];
 TRect chrSelection;
 TRect chrSelBuf;
 TRect nameSelBuf;
@@ -117,10 +120,6 @@ int prevMouseX; //FG: reserved for potential features to come
 
 //BROKE STUDIO
 AnsiString metaSpriteBankName;
-AnsiString metaSpriteNames[256];
-AnsiString metaSpriteNamesUndo[256];
-AnsiString metaSpriteNamesCheckpoint[256];
-AnsiString metaSpriteNamesCheckpointUndo[256];
 
 AnsiString tmpMetaSprName;
 //AnsiString metaSpriteNameCopy;
@@ -129,17 +128,6 @@ char metaSpriteNameCopy[256];
 
 int spriteActive;
 int metaSpriteActive;
-
-int spriteGridX;
-int spriteGridY;
-int undoSpriteGridX;
-int undoSpriteGridY;
-
-int checkpointSpriteGridX;
-int checkpointSpriteGridY;
-int undoCheckpointSpriteGridX;
-int undoCheckpointSpriteGridY;
-
 
 int spriteHover;
 int spriteDrag;
@@ -282,8 +270,7 @@ inline const char * const BoolToString(bool b)
 }
 
 bool GetTileHasContents(char* tile)
-{                                    
-						 std::is_POD_type(TFormMain)
+{
 	for(int i=0;i<16;i++)
 	{
 		if(tile[i]) return true;
@@ -3308,7 +3295,7 @@ void __fastcall TFormMain::UpdateStats(void)
 				+" \tOff: $"+IntToHex(off,4)
 				+"\tName: $"+IntToHex(nameTable[off],2)
 				+"\tAtXY: "+IntToStr(nameXC/2)+","+IntToStr(nameYC/2)
-				+"\tAtOff: $"+IntToHex(nameYC/4*8+nameXC/4+nameTableWidth*nameTableHeight,4)
+				+"\tAtOff: $"+IntToHex((int)(nameYC/4*8+nameXC/4+nameTableWidth*nameTableHeight),4)
 				+"."+IntToStr((nameXC&2)+(nameYC&2)*2)
 				+"="+IntToStr(AttrGet(nameXC,nameYC,false,false))
 				+"\t($"+IntToHex(attrTable[nameYC/4*8+nameXC/4],2)+")"
@@ -3445,7 +3432,7 @@ void __fastcall TFormMain::SetUndo(void)
 	UpdateStats();
 	//
 
-	global_state->SetUndo();
+	state->SetUndo();
 
 }
 
@@ -3499,7 +3486,7 @@ void __fastcall TFormMain::Undo(void)
 //	tmp=spriteGridY;        spriteGridY=undoSpriteGridY;    undoSpriteGridY=tmp;
 
     
-	global_state->Undo(1);
+	state->Undo(1);
 
 	UpdateAll();
 }
@@ -3837,9 +3824,6 @@ bool __fastcall TFormMain::LoadSession1x(AnsiString filename)
 	fread(attrTable,sizeof(attrTable),1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
-	fread(undoChr  ,sizeof(undoChr)  ,1,file);
-	fread(undoNameTable,sizeof(undoNameTable),1,file);
-	fread(undoAttrTable,sizeof(undoAttrTable),1,file);
 
 	//palette
 
@@ -3928,9 +3912,6 @@ bool __fastcall TFormMain::LoadSession2x(AnsiString filename)
 	fread(attrTable,sizeof(attrTable),1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
-	fread(undoChr  ,sizeof(undoChr)  ,1,file);
-	fread(undoNameTable,sizeof(undoNameTable),1,file);
-	fread(undoAttrTable,sizeof(undoAttrTable),1,file);
 	fread(metaSprites  ,sizeof(metaSprites)  ,1,file);
 
 	//palette
@@ -4118,39 +4099,18 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 	//nss_get_bytes(text,size,"ppuMaskSet=",ppuMaskSet,sizeof(ppuMaskSet));
 	nss_get_bytes(text,size,"VarCHRSelected=",chrSelected,sizeof(chrSelected));
 
-	//working pal is loaded before everything else. 
-	nss_get_bytes(text,size,"PalUndo="    ,bgPalUndo    ,sizeof(bgPalUndo));
+	//working pal is loaded before everything else.
 
 	nss_get_bytes(text,size,"CHRMain="    ,chr          ,sizeof(chr));
 	nss_get_bytes(text,size,"CHRCopy="    ,chrCopy      ,sizeof(chrCopy));
-	nss_get_bytes(text,size,"CHRUndo="    ,undoChr      ,sizeof(undoChr));
 
 	nss_get_bytes(text,size,"NameTable="  ,nameTable    ,name_size());
 	nss_get_bytes(text,size,"NameCopy="   ,nameCopy     ,name_size());
-	nss_get_bytes(text,size,"NameUndo="   ,undoNameTable,name_size());
 
 	nss_get_bytes(text,size,"AttrTable="  ,attrTable    ,attr_size());
 	nss_get_bytes(text,size,"AttrCopy="   ,attrCopy     ,attr_size());
-	nss_get_bytes(text,size,"AttrUndo="   ,undoAttrTable,attr_size());
 
 	nss_get_bytes(text,size,"MetaSprites=",metaSprites,sizeof(metaSprites));
-
-	//Checkpoint stuff
-	nss_get_bytes(text,size,"Checkpoint_Palette="  ,bgPalCheckpoint 		,sizeof(bgPal));
-	nss_get_bytes(text,size,"Checkpoint_PalUndo="  ,bgPalUndoCheckPoint  ,sizeof(bgPalUndo));
-
-	nss_get_bytes(text,size,"Checkpoint_CHRMain="  ,checkpointChr          ,sizeof(chr));
-	nss_get_bytes(text,size,"Checkpoint_CHRUndo="  ,undoCheckpointChr      ,sizeof(undoChr));
-
-	nss_get_bytes(text,size,"Checkpoint_NameTable=",checkpointNameTable    ,name_size());
-	nss_get_bytes(text,size,"Checkpoint_NameUndo=" ,undoCheckpointNameTable,name_size());
-
-	nss_get_bytes(text,size,"Checkpoint_AttrTable=",checkpointAttrTable    ,attr_size());
-	nss_get_bytes(text,size,"Checkpoint_AttrUndo=" ,undoCheckpointAttrTable,attr_size());
-
-	nss_get_bytes(text,size,"Checkpoint_MetaSprites=",checkpointMetaSprites,sizeof(metaSprites));
-
-
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -4355,37 +4315,17 @@ void __fastcall TFormMain::SaveSession(AnsiString filename)
 	//arrays
 
 	nss_put_bytes(file,"\n\nPalette="  ,bgPal        ,sizeof(bgPal));
-	nss_put_bytes(file,"\n\nPalUndo="  ,bgPalUndo    ,sizeof(bgPalUndo));
 
 	nss_put_bytes(file,"\n\nCHRMain="  ,chr          ,sizeof(chr));
 	nss_put_bytes(file,"\n\nCHRCopy="  ,chrCopy      ,sizeof(chrCopy));
-	nss_put_bytes(file,"\n\nCHRUndo="  ,undoChr      ,sizeof(undoChr));
 
 	nss_put_bytes(file,"\n\nNameTable=",nameTable    ,name_size());
 	nss_put_bytes(file,"\n\nNameCopy=" ,nameCopy     ,name_size());
-	nss_put_bytes(file,"\n\nNameUndo=" ,undoNameTable,name_size());
 
 	nss_put_bytes(file,"\n\nAttrTable=",attrTable    ,attr_size());
 	nss_put_bytes(file,"\n\nAttrCopy=" ,attrCopy     ,attr_size());
-	nss_put_bytes(file,"\n\nAttrUndo=" ,undoAttrTable,attr_size());
 
 	nss_put_bytes(file,"\n\nMetaSprites=",metaSprites,sizeof(metaSprites));
-
-	//checkpoint data
-
-	nss_put_bytes(file,"\n\nCheckpoint_Palette="  ,bgPalCheckpoint 		,sizeof(bgPal));
-	nss_put_bytes(file,"\n\nCheckpoint_PalUndo="  ,bgPalUndoCheckPoint  ,sizeof(bgPalUndo));
-
-	nss_put_bytes(file,"\n\nCheckpoint_CHRMain="  ,checkpointChr          ,sizeof(chr));
-	nss_put_bytes(file,"\n\nCheckpoint_CHRUndo="  ,undoCheckpointChr      ,sizeof(undoChr));
-
-	nss_put_bytes(file,"\n\nCheckpoint_NameTable=",checkpointNameTable    ,name_size());
-	nss_put_bytes(file,"\n\nCheckpoint_NameUndo=" ,undoCheckpointNameTable,name_size());
-
-	nss_put_bytes(file,"\n\nCheckpoint_AttrTable=",checkpointAttrTable    ,attr_size());
-	nss_put_bytes(file,"\n\nCheckpoint_AttrUndo=" ,undoCheckpointAttrTable,attr_size());
-
-	nss_put_bytes(file,"\n\nCheckpoint_MetaSprites=",checkpointMetaSprites,sizeof(metaSprites));
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -6327,6 +6267,19 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	unsigned char buf[192];
 	AnsiString dir,name,spr;
 
+	state = new State();
+	checkpoint = new State();
+    bgPal           = state->curr->bgPal;
+    nameTable       = &state->curr->nameTable[0];
+    attrTable       = &state->curr->attrTable[0];
+    chr             = state->curr->chr;
+    metaSprites     = state->curr->metaSprites;
+    metaSpriteNames = state->curr->metaSpriteNames;
+    spriteGridX.Set(&state->curr->spriteGridX);
+    spriteGridY.Set(&state->curr->spriteGridY);
+    nameTableWidth.Set(&state->curr->nameTableWidth);
+    nameTableHeight.Set(&state->curr->nameTableHeight);
+
 	CF_CHR=RegisterClipboardFormat("NESST_CF_CHR");
 	CF_NAM=RegisterClipboardFormat("NESST_CF_NAM");
 	CF_META=RegisterClipboardFormat("NESST_CF_META");
@@ -6454,12 +6407,6 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 
 	spriteGridX=64;
 	spriteGridY=64;
-	undoSpriteGridX=64;
-	undoSpriteGridY=64;
-	checkpointSpriteGridX	   =  64;
-	checkpointSpriteGridY      =  64;
-	undoCheckpointSpriteGridX  =  64;
-	undoCheckpointSpriteGridY  =  64;
 
 	spriteActive=0;
 
@@ -13407,41 +13354,42 @@ void __fastcall TFormMain::IncDecFlow1Click(TObject *Sender)
 
 void __fastcall TFormMain::Setcheckpoint1Click(TObject *Sender)
 {
-	for(int i=0;i<256;i++)
-	{
-		metaSpriteNamesCheckpoint[i]	=metaSpriteNames[i];
-		metaSpriteNamesCheckpointUndo[i]=metaSpriteNamesUndo[i];
-	}
+//	for(int i=0;i<256;i++)
+//	{
+//		metaSpriteNamesCheckpoint[i]	=metaSpriteNames[i];
+//		metaSpriteNamesCheckpointUndo[i]=metaSpriteNamesUndo[i];
+//	}
+//
+//     
+//
+//	///put current state in checkpoint buffer
+//	memcpy(bgPalCheckpoint,bgPal,sizeof(bgPal));
+//	memcpy(checkpointChr,chr,8192);
+//	memcpy(checkpointNameTable,nameTable,name_size());
+//	memcpy(checkpointAttrTable,attrTable,attr_size());
+//	memcpy(checkpointMetaSprites,metaSprites,sizeof(checkpointMetaSprites));
+//
+//	checkpointNameTableWidth   =  nameTableWidth;
+//	checkpointNameTableHeight  =  nameTableHeight;
+//
+//	checkpointSpriteGridX	   =  spriteGridX;
+//	checkpointSpriteGridY      =  spriteGridY;
+//
+//
+//	//put undo buffer into "undo checkpoint" buffer
+//	memcpy(bgPalUndoCheckPoint,bgPalUndo,sizeof(bgPal));
+//	memcpy(undoCheckpointChr,undoChr,8192);
+//	memcpy(undoCheckpointNameTable,undoNameTable,name_size());
+//	memcpy(undoCheckpointAttrTable,undoAttrTable,attr_size());
+//	memcpy(undoCheckpointMetaSprites,undoMetaSprites,sizeof(checkpointMetaSprites));
+//
+//	undoCheckpointNameTableWidth  = undoNameTableWidth;
+//	undoCheckpointNameTableHeight = undoNameTableHeight;
+//
+//    undoCheckpointSpriteGridX  =  undoSpriteGridX;
+//	undoCheckpointSpriteGridY  =  undoSpriteGridY;
 
-     
-
-	///put current state in checkpoint buffer
-	memcpy(bgPalCheckpoint,bgPal,sizeof(bgPal));
-	memcpy(checkpointChr,chr,8192);
-	memcpy(checkpointNameTable,nameTable,name_size());
-	memcpy(checkpointAttrTable,attrTable,attr_size());
-	memcpy(checkpointMetaSprites,metaSprites,sizeof(checkpointMetaSprites));
-
-	checkpointNameTableWidth   =  nameTableWidth;
-	checkpointNameTableHeight  =  nameTableHeight;
-
-	checkpointSpriteGridX	   =  spriteGridX;
-	checkpointSpriteGridY      =  spriteGridY;
-
-
-	//put undo buffer into "undo checkpoint" buffer
-	memcpy(bgPalUndoCheckPoint,bgPalUndo,sizeof(bgPal));
-	memcpy(undoCheckpointChr,undoChr,8192);
-	memcpy(undoCheckpointNameTable,undoNameTable,name_size());
-	memcpy(undoCheckpointAttrTable,undoAttrTable,attr_size());
-	memcpy(undoCheckpointMetaSprites,undoMetaSprites,sizeof(checkpointMetaSprites));
-
-	undoCheckpointNameTableWidth  = undoNameTableWidth;
-	undoCheckpointNameTableHeight = undoNameTableHeight;
-
-    undoCheckpointSpriteGridX  =  undoSpriteGridX;
-	undoCheckpointSpriteGridY  =  undoSpriteGridY;
-
+	(*checkpoint) = (*state);
 
 }
 
@@ -13449,79 +13397,79 @@ void __fastcall TFormMain::Setcheckpoint1Click(TObject *Sender)
 
 void __fastcall TFormMain::Reverttocheckpoint1Click(TObject *Sender)
 {
-	int i,tmp;
+//	int i,tmp;
+//
+//	int tmp_maxAttr, tmp_maxName;
+//
+//	int tmp_AttrSize	,	tmp_checkpointAttrSize;
+//	int tmp_NameSize	, 	tmp_checkpointNameSize;
+//
+//
+//	AnsiString tmpAnsi;
+//
+//	for(i=0;i<256;i++)
+//	{
+//		tmpAnsi=metaSpriteNames[i];
+//		metaSpriteNames[i]=metaSpriteNamesCheckpoint[i];
+//		metaSpriteNamesCheckpoint[i]=tmpAnsi;
+//
+//		tmpAnsi=metaSpriteNamesUndo[i];
+//		metaSpriteNames[i]=metaSpriteNamesCheckpointUndo[i];
+//		metaSpriteNamesCheckpointUndo[i]=tmpAnsi;
+//	}
+//
+//
+//
+//
+//	//swap current and checkpoint states
+//	tmp_AttrSize = (nameTableWidth+3)/4*((nameTableHeight+3)/4);
+//	tmp_checkpointAttrSize = (checkpointNameTableWidth+3)/4*((checkpointNameTableHeight+3)/4);
+//	tmp_maxAttr = tmp_AttrSize > tmp_checkpointAttrSize
+//					? tmp_AttrSize : tmp_checkpointAttrSize;
+//
+//	tmp_NameSize = nameTableWidth*nameTableHeight;
+//	tmp_checkpointNameSize = checkpointNameTableWidth*checkpointNameTableHeight;
+//	tmp_maxName = tmp_NameSize > tmp_checkpointNameSize
+//					? tmp_NameSize : tmp_checkpointNameSize;
+//
+//	mem_exchange(bgPalCheckpoint,bgPal,sizeof(bgPal));
+//	mem_exchange(checkpointChr,chr,8192);
+//	mem_exchange(checkpointNameTable,nameTable,tmp_maxName);   //name_size()
+//	mem_exchange(checkpointAttrTable,attrTable,tmp_maxAttr);   //attr_size()
+//	mem_exchange(checkpointMetaSprites,metaSprites,sizeof(checkpointMetaSprites));
+//
+//	tmp = nameTableWidth;   nameTableWidth = checkpointNameTableWidth;		checkpointNameTableWidth=tmp;
+//	tmp = nameTableHeight;  nameTableHeight = checkpointNameTableHeight;    checkpointNameTableHeight=tmp;
+//
+//	tmp = spriteGridX;   spriteGridX = checkpointSpriteGridX;		checkpointSpriteGridX=tmp;
+//	tmp = spriteGridY;   spriteGridY = checkpointSpriteGridY;    checkpointSpriteGridY=tmp;
+//
+//
+//	//swap current and checkpoint UNDO states
+//
+//	tmp_AttrSize = (undoNameTableWidth+3)/4*((undoNameTableHeight+3)/4);
+//	tmp_checkpointAttrSize = (undoCheckpointNameTableWidth+3)/4*((undoCheckpointNameTableHeight+3)/4);
+//	tmp_maxAttr = tmp_AttrSize > tmp_checkpointAttrSize
+//					? tmp_AttrSize : tmp_checkpointAttrSize;
+//
+//	tmp_NameSize = undoNameTableWidth * undoNameTableHeight;
+//	tmp_checkpointNameSize = undoCheckpointNameTableWidth * undoCheckpointNameTableHeight;
+//	tmp_maxName = tmp_NameSize > tmp_checkpointNameSize
+//					? tmp_NameSize : tmp_checkpointNameSize;
+//
+//	mem_exchange(bgPalUndoCheckPoint,bgPalUndo,sizeof(bgPal));
+//	mem_exchange(undoCheckpointChr,undoChr,8192);
+//	mem_exchange(undoCheckpointNameTable,undoNameTable,tmp_maxName);      //name_size()
+//	mem_exchange(undoCheckpointAttrTable,undoAttrTable,tmp_maxAttr);    //attr_size()
+//	mem_exchange(undoCheckpointMetaSprites,undoMetaSprites,sizeof(checkpointMetaSprites));
+//
+//	tmp = undoNameTableWidth;   undoNameTableWidth = undoCheckpointNameTableWidth;		undoCheckpointNameTableWidth=tmp;
+//	tmp = undoNameTableHeight;  undoNameTableHeight = undoCheckpointNameTableHeight;    undoCheckpointNameTableHeight=tmp;
+//
+//	tmp = undoSpriteGridX;  undoSpriteGridX = undoCheckpointSpriteGridX;	undoCheckpointSpriteGridX=tmp;
+//	tmp = undoSpriteGridY;  undoSpriteGridY = undoCheckpointSpriteGridY;    undoCheckpointSpriteGridY=tmp;
 
-	int tmp_maxAttr, tmp_maxName;
-
-	int tmp_AttrSize	,	tmp_checkpointAttrSize;
-	int tmp_NameSize	, 	tmp_checkpointNameSize;
-
-
-	AnsiString tmpAnsi;
-
-	for(i=0;i<256;i++)
-	{
-		tmpAnsi=metaSpriteNames[i];
-		metaSpriteNames[i]=metaSpriteNamesCheckpoint[i];
-		metaSpriteNamesCheckpoint[i]=tmpAnsi;
-
-		tmpAnsi=metaSpriteNamesUndo[i];
-		metaSpriteNames[i]=metaSpriteNamesCheckpointUndo[i];
-		metaSpriteNamesCheckpointUndo[i]=tmpAnsi;
-	}
-
-
-
-
-	//swap current and checkpoint states
-	tmp_AttrSize = (nameTableWidth+3)/4*((nameTableHeight+3)/4);
-	tmp_checkpointAttrSize = (checkpointNameTableWidth+3)/4*((checkpointNameTableHeight+3)/4);
-	tmp_maxAttr = tmp_AttrSize > tmp_checkpointAttrSize
-					? tmp_AttrSize : tmp_checkpointAttrSize;
-
-	tmp_NameSize = nameTableWidth*nameTableHeight;
-	tmp_checkpointNameSize = checkpointNameTableWidth*checkpointNameTableHeight;
-	tmp_maxName = tmp_NameSize > tmp_checkpointNameSize
-					? tmp_NameSize : tmp_checkpointNameSize;
-
-	mem_exchange(bgPalCheckpoint,bgPal,sizeof(bgPal));
-	mem_exchange(checkpointChr,chr,8192);
-	mem_exchange(checkpointNameTable,nameTable,tmp_maxName);   //name_size()
-	mem_exchange(checkpointAttrTable,attrTable,tmp_maxAttr);   //attr_size()
-	mem_exchange(checkpointMetaSprites,metaSprites,sizeof(checkpointMetaSprites));
-
-	tmp = nameTableWidth;   nameTableWidth = checkpointNameTableWidth;		checkpointNameTableWidth=tmp;
-	tmp = nameTableHeight;  nameTableHeight = checkpointNameTableHeight;    checkpointNameTableHeight=tmp;
-
-	tmp = spriteGridX;   spriteGridX = checkpointSpriteGridX;		checkpointSpriteGridX=tmp;
-	tmp = spriteGridY;   spriteGridY = checkpointSpriteGridY;    checkpointSpriteGridY=tmp;
-
-
-	//swap current and checkpoint UNDO states
-
-	tmp_AttrSize = (undoNameTableWidth+3)/4*((undoNameTableHeight+3)/4);
-	tmp_checkpointAttrSize = (undoCheckpointNameTableWidth+3)/4*((undoCheckpointNameTableHeight+3)/4);
-	tmp_maxAttr = tmp_AttrSize > tmp_checkpointAttrSize
-					? tmp_AttrSize : tmp_checkpointAttrSize;
-
-	tmp_NameSize = undoNameTableWidth * undoNameTableHeight;
-	tmp_checkpointNameSize = undoCheckpointNameTableWidth * undoCheckpointNameTableHeight;
-	tmp_maxName = tmp_NameSize > tmp_checkpointNameSize
-					? tmp_NameSize : tmp_checkpointNameSize;
-
-	mem_exchange(bgPalUndoCheckPoint,bgPalUndo,sizeof(bgPal));
-	mem_exchange(undoCheckpointChr,undoChr,8192);
-	mem_exchange(undoCheckpointNameTable,undoNameTable,tmp_maxName);      //name_size()
-	mem_exchange(undoCheckpointAttrTable,undoAttrTable,tmp_maxAttr);    //attr_size()
-	mem_exchange(undoCheckpointMetaSprites,undoMetaSprites,sizeof(checkpointMetaSprites));
-
-	tmp = undoNameTableWidth;   undoNameTableWidth = undoCheckpointNameTableWidth;		undoCheckpointNameTableWidth=tmp;
-	tmp = undoNameTableHeight;  undoNameTableHeight = undoCheckpointNameTableHeight;    undoCheckpointNameTableHeight=tmp;
-
-	tmp = undoSpriteGridX;  undoSpriteGridX = undoCheckpointSpriteGridX;	undoCheckpointSpriteGridX=tmp;
-	tmp = undoSpriteGridY;  undoSpriteGridY = undoCheckpointSpriteGridY;    undoCheckpointSpriteGridY=tmp;
-
-
+    (*state) = (*checkpoint);
 	UpdateAll();
 
 

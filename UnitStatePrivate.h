@@ -242,7 +242,7 @@ namespace ValueSerialize {
 template <typename T>
 class WeakRef {
 public:
-    WeakRef() : backing(nullptr) {}
+    WeakRef() : backing(NULL) {}
     WeakRef(T* _backing) : backing(_backing) {}
 
     WeakRef<T>& operator=(WeakRef<T> other) {
