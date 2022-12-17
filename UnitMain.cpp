@@ -390,10 +390,8 @@ int read_dword(unsigned char *data)
 
 int __fastcall TFormMain::AttrGet(int x,int y, bool doBuffer, bool returnByte)
 {
-	int pal;
-
-	if(doBuffer) pal=attrCopy[y/4*((nameTableWidth+3)/4)+x/4];
-	else pal=attrTable[y/4*((nameTableWidth+3)/4)+x/4];
+	int idx = y/4*((nameTableWidth+3)/4)+x/4;
+	int pal = (doBuffer) ? attrCopy[idx] : attrTable[idx];
 
 	//return full byte
 	if(returnByte) return pal;
@@ -771,8 +769,8 @@ void __fastcall TFormMain::ClearNametable(bool useNulltile)
 {
 	int tmp	= useNulltile ? nullTile : 0 ;
 
-	memset(nameTable,tmp,sizeof(nameTable));
-	memset(attrTable,0,sizeof(attrTable));
+	memset(nameTable,tmp,state->curr->NameSize());
+	memset(attrTable,0,state->curr->AttrSize());
 }
 
 
@@ -3636,8 +3634,6 @@ void nss_put_bytes(FILE *file,const char *name,unsigned char *data,int size)
 	fprintf(file,"\n");
 }
 
-
-
 bool nss_get_bytes(char* data,int size,const char* tag,unsigned char *dst,int dst_size)
 {
 	char c1,c2;
@@ -3646,7 +3642,7 @@ bool nss_get_bytes(char* data,int size,const char* tag,unsigned char *dst,int ds
 	len=strlen(tag);
 	ptr=0;
 
-	while(size)
+	while(size>=len)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3713,7 +3709,7 @@ char* nss_get_str(char* data,int size,const char* tag)
 	len=strlen(tag);
 	ptr=0;
 
-	while(size)
+	while(size>=len)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3750,7 +3746,7 @@ int nss_get_int(char* data,int size,const char* tag)
 
 	len=strlen(tag);
 
-	while(size)
+	while(size>=len)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3818,10 +3814,10 @@ bool __fastcall TFormMain::LoadSession1x(AnsiString filename)
 
 	//arrays
 
-	fread(chr      ,sizeof(chr)      ,1,file);
+	fread(chr      ,CHR_SIZE      ,1,file);
 	fread(chrCopy  ,sizeof(chrCopy)  ,1,file);
-	fread(nameTable,sizeof(nameTable),1,file);
-	fread(attrTable,sizeof(attrTable),1,file);
+	fread(nameTable,NAMETABLE_MAX_SIZE,1,file);
+	fread(attrTable,NAMETABLE_MAX_SIZE,1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
 
@@ -3906,13 +3902,13 @@ bool __fastcall TFormMain::LoadSession2x(AnsiString filename)
 
 	//arrays
 
-	fread(chr      ,sizeof(chr)      ,1,file);
-	fread(chrCopy  ,sizeof(chrCopy)  ,1,file);
-	fread(nameTable,sizeof(nameTable),1,file);
-	fread(attrTable,sizeof(attrTable),1,file);
+	fread(chr      ,CHR_SIZE      ,1,file);
+	fread(chrCopy  ,CHR_SIZE  ,1,file);
+	fread(nameTable,NAMETABLE_MAX_SIZE,1,file);
+	fread(attrTable,NAMETABLE_MAX_SIZE,1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
-	fread(metaSprites  ,sizeof(metaSprites)  ,1,file);
+	fread(metaSprites  ,METASPRITES_SIZE  ,1,file);
 
 	//palette
 
@@ -4012,10 +4008,10 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 
 	fread(text,size,1,file);
 	fclose(file);
+	
+//  palette
 
-	//palette
-
-	nss_get_bytes(text,size,"Palette=",bgPal,sizeof(bgPal));
+	nss_get_bytes(text,size,"Palette=",bgPal,BG_PAL_SIZE);
 
 	//screen buttons state
 
@@ -4101,16 +4097,16 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 
 	//working pal is loaded before everything else.
 
-	nss_get_bytes(text,size,"CHRMain="    ,chr          ,sizeof(chr));
-	nss_get_bytes(text,size,"CHRCopy="    ,chrCopy      ,sizeof(chrCopy));
+	nss_get_bytes(text,size,"CHRMain="    ,chr          ,CHR_SIZE);
+	nss_get_bytes(text,size,"CHRCopy="    ,chrCopy      ,CHR_SIZE);
 
-	nss_get_bytes(text,size,"NameTable="  ,nameTable    ,name_size());
-	nss_get_bytes(text,size,"NameCopy="   ,nameCopy     ,name_size());
+	nss_get_bytes(text,size,"NameTable="  ,nameTable    ,state->curr->NameSize());
+	nss_get_bytes(text,size,"NameCopy="   ,nameCopy     ,state->curr->NameSize());
 
-	nss_get_bytes(text,size,"AttrTable="  ,attrTable    ,attr_size());
-	nss_get_bytes(text,size,"AttrCopy="   ,attrCopy     ,attr_size());
+	nss_get_bytes(text,size,"AttrTable="  ,attrTable    ,state->curr->AttrSize());
+	nss_get_bytes(text,size,"AttrCopy="   ,attrCopy     ,state->curr->AttrSize());
 
-	nss_get_bytes(text,size,"MetaSprites=",metaSprites,sizeof(metaSprites));
+	nss_get_bytes(text,size,"MetaSprites=",metaSprites,METASPRITES_SIZE);
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -4181,6 +4177,13 @@ bool __fastcall TFormMain::LoadSession(AnsiString filename)
 	fclose(file);
 
 	ver=0;
+	// jroweboy:
+	// New file is likely to load so drop the old state and checkpoint and start fresh
+	// We can't know if the file will load until later, but we need the new state setup first, so
+	// we go ahead and promote a new state to the global state
+	State* newstate = new State();
+	newstate->MakeCurrent();
+
 
 	if(!memcmp(temp,"NESSTses",8)) ver=1;//load legacy binary format
 	if(!memcmp(temp,"NSTses00",8)) ver=2;//load old binary format
@@ -4212,9 +4215,21 @@ bool __fastcall TFormMain::LoadSession(AnsiString filename)
 		UpdateNameTable(-1,-1,true);
 		//if (FormNavigator->Visible) FormNavigator->Draw(true,true);
 
+		// Load was sucessful, so we drop the old state info and make new ones
+		if (state)
+			delete state;
+		if (checkpoint)
+			delete checkpoint;
+
+		state = newstate;
+		checkpoint = new State();
+		state->CopyCurrentState();
+
 		return true;
 	}
 
+	// load was unsuccessful so delete the new state to prevent memory leaks
+	delete newstate;
 	Application->MessageBox("Unknown or corrupted session data format","Error",MB_OK);
 
 	return false;
@@ -4314,18 +4329,18 @@ void __fastcall TFormMain::SaveSession(AnsiString filename)
 
 	//arrays
 
-	nss_put_bytes(file,"\n\nPalette="  ,bgPal        ,sizeof(bgPal));
+	nss_put_bytes(file,"\n\nPalette="  ,bgPal        ,BG_PAL_SIZE);
 
-	nss_put_bytes(file,"\n\nCHRMain="  ,chr          ,sizeof(chr));
-	nss_put_bytes(file,"\n\nCHRCopy="  ,chrCopy      ,sizeof(chrCopy));
+	nss_put_bytes(file,"\n\nCHRMain="  ,chr          ,CHR_SIZE);
+	nss_put_bytes(file,"\n\nCHRCopy="  ,chrCopy      ,CHR_SIZE);
 
-	nss_put_bytes(file,"\n\nNameTable=",nameTable    ,name_size());
-	nss_put_bytes(file,"\n\nNameCopy=" ,nameCopy     ,name_size());
+	nss_put_bytes(file,"\n\nNameTable=",nameTable    ,state->curr->NameSize());
+	nss_put_bytes(file,"\n\nNameCopy=" ,nameCopy     ,state->curr->NameSize());
 
-	nss_put_bytes(file,"\n\nAttrTable=",attrTable    ,attr_size());
-	nss_put_bytes(file,"\n\nAttrCopy=" ,attrCopy     ,attr_size());
+	nss_put_bytes(file,"\n\nAttrTable=",attrTable    ,state->curr->AttrSize());
+	nss_put_bytes(file,"\n\nAttrCopy=" ,attrCopy     ,state->curr->AttrSize());
 
-	nss_put_bytes(file,"\n\nMetaSprites=",metaSprites,sizeof(metaSprites));
+	nss_put_bytes(file,"\n\nMetaSprites=",metaSprites,METASPRITES_SIZE);
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -6269,16 +6284,7 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 
 	state = new State();
 	checkpoint = new State();
-    bgPal           = state->curr->bgPal;
-    nameTable       = &state->curr->nameTable[0];
-    attrTable       = &state->curr->attrTable[0];
-    chr             = state->curr->chr;
-    metaSprites     = state->curr->metaSprites;
-    metaSpriteNames = state->curr->metaSpriteNames;
-    spriteGridX.Set(&state->curr->spriteGridX);
-    spriteGridY.Set(&state->curr->spriteGridY);
-    nameTableWidth.Set(&state->curr->nameTableWidth);
-    nameTableHeight.Set(&state->curr->nameTableHeight);
+	state->MakeCurrent();
 
 	CF_CHR=RegisterClipboardFormat("NESST_CF_CHR");
 	CF_NAM=RegisterClipboardFormat("NESST_CF_NAM");
@@ -6297,7 +6303,7 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
     TimerNTstrip->Enabled=false;
 	palBank=0;
 
-	memcpy(bgPal,&bgPalDefault[16],sizeof(bgPal));
+	memcpy(bgPal,&bgPalDefault[16],BG_PAL_SIZE);
 
 	nameTableWidth=32;
 	nameTableHeight=30;
@@ -6411,32 +6417,29 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	spriteActive=0;
 
 
-	memset(nameTable  ,0  ,sizeof(nameTable));
-	memset(attrTable  ,0  ,sizeof(attrTable));
-	memset(chr        ,0  ,sizeof(chr));
-	memset(chrCopy    ,0  ,sizeof(chrCopy));
-	memset(metaSprites,255,sizeof(metaSprites));
+	memset(nameTable  ,0  ,state->curr->NameSize());
+	memset(attrTable  ,0  ,state->curr->AttrSize());
+	memset(chr        ,0  ,CHR_SIZE);
+	memset(chrCopy    ,0  ,CHR_SIZE);
+	memset(metaSprites,255,METASPRITES_SIZE);
 	memset(metaSpriteCopy,255,sizeof(metaSpriteCopy));
 
 	dir=ParamStr(0).SubString(0,ParamStr(0).LastDelimiter("\\/"));
-    globalDir=dir;
+	globalDir=dir;
 	file=fopen((dir+"nes.pal").c_str(),"rb");
 
-	if(file)
+	if(file && get_file_size(file)==192)
 	{
-		if(get_file_size(file)==192)
+		Externalnespal1->Checked=true;
+		fread(buf,192,1,file);
+		fclose(file);
+
+		pp=0;
+
+		for(i=0;i<64;i++)
 		{
-			Externalnespal1->Checked=true;
-			fread(buf,192,1,file);
-			fclose(file);
-
-			pp=0;
-
-			for(i=0;i<64;i++)
-			{
-				basePalette[i]=(buf[pp+2]<<16)|(buf[pp+1]<<8)|buf[pp];
-				pp+=3;
-			}
+			basePalette[i]=(buf[pp+2]<<16)|(buf[pp+1]<<8)|buf[pp];
+			pp+=3;
 		}
 	}
 	else
@@ -6507,8 +6510,6 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	SetCurrentDirectory(dir.c_str());
 	openByFileDone=true;
 
-	SetUndo();
-
 	unsavedChanges=false;
 	//Savesession1->Enabled=false;      //no reason not to let the user save if save knows to redirect to save as. 
 	//FG menu check items init
@@ -6565,6 +6566,9 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 
 	metaSpriteBankName=RemoveExt(ExtractFileName(SaveDialogSession->FileName)); //
 	UpdateUIScale();
+
+	// After we've populated the initial data, don't create a patch, just copy it to the previous field
+	state->CopyCurrentState();
 }
 //---------------------------------------------------------------------------
 
@@ -8354,7 +8358,9 @@ void __fastcall TFormMain::FormDestroy(TObject *Sender)
 {
     delete BufBmpName;
 	delete BufBmpTiles;
-
+	delete state;
+	delete checkpoint;
+	
 	char path[MAX_PATH];
 	int len;
 
@@ -12142,8 +12148,8 @@ void __fastcall TFormMain::MNameTableNewClick(TObject *Sender)
 	
 	//if(Application->MessageBox("Are you sure?","Confirm",MB_YESNO)!=IDYES) return;
 
-	memcpy(tmpNameTable,nameTable,sizeof(nameTable));
-	memcpy(tmpAttrTable,attrTable,sizeof(attrTable));
+	memcpy(tmpNameTable,nameTable,state->curr->NameSize());
+	memcpy(tmpAttrTable,attrTable,state->curr->AttrSize());
 
 	SetUndo();
 
@@ -12263,19 +12269,19 @@ void __fastcall TFormMain::MSaveMapClick(TObject *Sender)
 		{
 			//
 			if(bRLE){
-				buf=(unsigned char*)malloc(name_size()+attr_size());
+				buf=(unsigned char*)malloc(state->curr->NameSize()+state->curr->AttrSize());
 				int size=0;
 
 				if(MSaveIncName->Checked)
 				{
-					memcpy(buf,nameTable,name_size());
-					size+=name_size();
+					memcpy(buf,nameTable,state->curr->NameSize());
+					size+=state->curr->NameSize();
 				}
 
 				if(MSaveIncAttr->Checked)
 				{
-					memcpy(buf+size,attrTable,attr_size());
-					size+=attr_size();
+					memcpy(buf+size,attrTable,state->curr->AttrSize());
+					size+=state->curr->AttrSize();
 				}
 				//pack buf as RLE to dst
 				dst=(unsigned char*)malloc(size*2);
@@ -12296,8 +12302,8 @@ void __fastcall TFormMain::MSaveMapClick(TObject *Sender)
 			}
 			//
 			else{
-				fwrite(nameTable,name_size(),1,file);
-				fwrite(attrTable,attr_size(),1,file);
+				fwrite(nameTable,state->curr->NameSize(),1,file);
+				fwrite(attrTable,state->curr->AttrSize(),1,file);
 			}
 			fwrite(meta,sizeof(meta),1,file);
 			fclose(file);

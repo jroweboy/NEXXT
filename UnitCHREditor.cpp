@@ -6,15 +6,15 @@
 #include "UnitMain.h"
 #include "UnitCHREditor.h"
 #include "UnitBrush.h"
+#include "UnitState.h"
+
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
 TFormCHREditor *FormCHREditor;
 
 extern int outPalette[];
-extern unsigned char bgPal[4*4*4];
 extern int bgPalCur;
-extern unsigned char chr[];
 extern unsigned char chrBuf[];
 extern unsigned char chrBufFill[];
 

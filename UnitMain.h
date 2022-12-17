@@ -81,7 +81,8 @@ const float emphasis[8][3]={//from nintech.txt
 	{ 75.0, 75.0, 75.0}
 };
 
-
+// Forward declare State
+class State;
 
 //---------------------------------------------------------------------------
 
@@ -1019,6 +1020,8 @@ public:		// User declarations
 
 	AnsiString FormCaption;
 	AnsiString globalDir;
+	State* state;
+	State* checkpoint;
 };
 //---------------------------------------------------------------------------
 extern PACKAGE TFormMain *FormMain;

@@ -136,11 +136,11 @@ namespace ValueSerialize {
             if (header == Headers::FIXED) {
                 Read<u32>(patch, &patchsize, index);
                 oldlen = patchsize;
-                newlen = patchsize;
-            } else {
+				newlen = patchsize;
+			} else {
                 Read<u32>(patch, &patchsize, index);
                 Read<u32>(patch, &oldlen, index);
-                Read<u32>(patch, &newlen, index);
+				Read<u32>(patch, &newlen, index);
             }
 
             u32 finallen = this->GetSize() ^ oldlen ^ newlen;
@@ -164,7 +164,7 @@ namespace ValueSerialize {
     template <typename T>
     class Resizeable : public Interface {
     public:
-        Resizeable(T* _data) : Interface(), data(_data) {}
+		Resizeable(T* _data) : Interface(), data(_data) {}
     private:
         T* data;
     };
@@ -184,7 +184,7 @@ namespace ValueSerialize {
     template<>
     class Resizeable<AnsiString> : public Interface {
     public:
-        Resizeable(AnsiString* _data) : data(_data) {}
+		Resizeable(AnsiString* _data) : data(_data) {}
 
 		inline u32 GetSize() const { return data->Length(); }
 		inline u8* GetRawData() const { return reinterpret_cast<u8*>(const_cast<char*>(data->c_str())); }
@@ -209,7 +209,7 @@ namespace ValueSerialize {
     template<u32 Size>
     class Fixed<AnsiString, Size> : public Interface {
     public:
-        Fixed(AnsiString* _data) : Interface(), data(_data) {}
+		Fixed(AnsiString* _data) : Interface(), data(_data) {}
 
 		void CreateDiff(std::vector<u8>& patch, const Interface* other) const {
             // If we have an inner class as the T type, then we need to loop and call that one instead

@@ -6,12 +6,11 @@
 #include "UnitNavThread.h"
 #include "UnitMain.h"
 #include "UnitNavigator.h"
+#include "UnitState.h"
 #pragma package(smart_init)
 
 extern bool bProcessDrawNavOn;
 
-extern unsigned char nameTable[NAME_MAX_SIZE];
-extern unsigned char attrTable[ATTR_MAX_SIZE];
 extern unsigned char nameCopy[NAME_MAX_SIZE];
 extern unsigned char chrSelected[256];
 extern int nameTableViewX;
@@ -23,9 +22,6 @@ extern int nameYC;
 
 extern int nullTile;
 extern int tileActive;
-
-extern int nameTableWidth;
-extern int nameTableHeight;
 
 extern int tileSelRectWdt;
 extern int tileSelRectHgt;

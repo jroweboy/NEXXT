@@ -12,8 +12,6 @@
 
 #pragma package(smart_init)
 
-State* state;
-State* checkpoint;
 u8* bgPal;
 u8* nameTable;
 u8* attrTable;
@@ -24,6 +22,7 @@ WeakRef<s32> nameTableWidth;
 WeakRef<s32> nameTableHeight;
 WeakRef<s32> spriteGridX;
 WeakRef<s32> spriteGridY;
+
 static inline u32 NmtIdx(u32 stride, u32 row, u32 col) {
     return row * stride + col;
 }
@@ -38,33 +37,22 @@ State::State() : curr(NULL), prev(NULL), undoHistory(), undoIndex(0), hasChanges
     curr->spriteGridX = 0;
     curr->spriteGridY = 0;
 
-    curr->attrTable.resize(((std::size_t)32 + 3) / 4 + ((std::size_t)30 + 3) / 4);
-    curr->nameTable.resize((std::size_t)32 * 30);
-
-    // Create default values for the global state
-    curr->nameTableWidth = 32;
-    curr->nameTableHeight = 30;
-    memset(curr->bgPal,       0,    sizeof(curr->bgPal));
-    memset(curr->chr,         0,    sizeof(curr->chr));
-    memset(curr->metaSprites, 0xff, sizeof(curr->metaSprites));
-
-    for (int i = 0; i < 256; ++i) {
-        curr->metaSpriteNames[i] = "Metasprite " + IntToStr(i);
-    }
+	curr->nameTable.resize(curr->NameSize());
+	curr->attrTable.resize(curr->AttrSize());
 
     CopyCurrentState();
 }
 
 State::State(const State& other) {
-    // copy all POD fields
-    *curr = *other.curr;
-    *prev = *other.prev;
-    // These are not trivially copyable
-    curr->nameTable = other.curr->nameTable;
-    prev->nameTable = other.prev->nameTable;
-    undoHistory = other.undoHistory;
-    undoIndex = other.undoIndex;
-    hasChanges = other.hasChanges;
+	// copy all POD fields
+	*curr = *other.curr;
+	*prev = *other.prev;
+	// These are not trivially copyable
+	curr->nameTable = other.curr->nameTable;
+	prev->nameTable = other.prev->nameTable;
+	undoHistory = other.undoHistory;
+	undoIndex = other.undoIndex;
+	hasChanges = other.hasChanges;
 }
 
 State::~State() {
@@ -72,7 +60,20 @@ State::~State() {
 	if (curr)
 		delete curr;
 	if (prev)
-	    delete prev;
+		delete prev;
+}
+
+void State::MakeCurrent() {
+	bgPal           = curr->bgPal;
+	nameTable       = &curr->nameTable[0];
+	attrTable       = &curr->attrTable[0];
+	chr             = curr->chr;
+	metaSprites     = curr->metaSprites;
+	metaSpriteNames = curr->metaSpriteNames;
+	spriteGridX.Set(&curr->spriteGridX);
+	spriteGridY.Set(&curr->spriteGridY);
+	nameTableWidth.Set(&curr->nameTableWidth);
+	nameTableHeight.Set(&curr->nameTableHeight);
 }
 
 void State::SetUndo() {
@@ -81,7 +82,7 @@ void State::SetUndo() {
     // Since we are setting a new history item, if we aren't at the end of the list,
     // we want to clear out all of the items from the current point to the end.
     if (undoIndex < undoHistory.size()) {
-        undoHistory.erase(undoHistory.begin() + undoIndex);
+        undoHistory.erase(undoHistory.begin() + undoIndex, undoHistory.end());
     }
 
     for (u32 i = 0; i < curr->fields.size(); ++i) {
@@ -267,6 +268,8 @@ void SwapGlobalState(State** global, State** checkpoint) {
 #ifndef __BORLANDC__
 
 // This is data I used to test the State. I built this with MSVC but really it doesn't matter what you use.
+State* state;
+State* checkpoint;
 
 #include "acutest.h"
 
@@ -279,17 +282,13 @@ void setup() {
     }
     state = new State();
     checkpoint = new State();
+	state->MakeCurrent();
 
-    bgPal           = state->curr->bgPal;
-    nameTable       = &state->curr->nameTable[0];
-    attrTable       = &state->curr->attrTable[0];
-    chr             = state->curr->chr;
-    metaSprites     = state->curr->metaSprites;
-    metaSpriteNames = state->curr->metaSpriteNames;
-    spriteGridX.Set(&state->curr->spriteGridX);
-    spriteGridY.Set(&state->curr->spriteGridY);
-    nameTableWidth.Set(&state->curr->nameTableWidth);
-    nameTableHeight.Set(&state->curr->nameTableHeight);
+    for (u32 i = 0; i < METASPRITES_NAME_SIZE; ++i) {
+        state->curr->metaSpriteNames[i] = "Metasprite " + IntToStr(i);
+    }
+
+    state->CopyCurrentState();
 }
 
 void test_weak_ref() {
@@ -307,9 +306,9 @@ void test_RLE() {
 
 void test_grid_sprite() {
     setup();
-    state->SetUndo();
 
     // basic Undo/Redo test for weakref values
+    state->SetUndo();
     spriteGridX = 100;
     spriteGridY = 200;
 
@@ -323,9 +322,9 @@ void test_grid_sprite() {
 
 void test_palette() {
     setup();
-    state->SetUndo();
 
     // basic Undo/Redo test for palette
+    state->SetUndo();
     bgPal[2] = 0x10;
     state->Undo(1);
     TEST_CHECK_(bgPal[2] == 0x00, "Palette should be reverted to original after Undo: 0x%02x expected: 0x00 ", bgPal[2]);
@@ -337,7 +336,7 @@ void test_palette() {
     // Set all of the values to each palette to their index number in one history item
     // History should contain for bgPal[2] = {0x00, 0x10, 0x02};
     state->SetUndo();
-    for (int i = 0; i < sizeof(bgPal); i++) {
+    for (int i = 0; i < BG_PAL_SIZE; i++) {
         bgPal[i] = i & 0xff;
     }
     TEST_CHECK_(bgPal[2] == 0x02, "Palette should be set to 0x02: %d expected: 0x02 ", bgPal[2]);
@@ -352,16 +351,51 @@ void test_palette() {
     TEST_CHECK_(bgPal[2] == 0x10, "Palette should be set back to previous value of 0x10 after one Undo: 0x%02x expected: 0x10 ", bgPal[2]);
 
     state->Redo(1); // check that palette values 
-    for (int i = 0; i < sizeof(bgPal); i++) {
+    for (int i = 0; i < BG_PAL_SIZE; i++) {
         TEST_CHECK_(bgPal[i] == i, "Palette current value should equal its index: 0x%02x expected: 0x%02x ", bgPal[i], i);
     }
+    
+    // Check that if you undo, and then edit, and then undo that it properly undos the recent changesstate->SetUndo();
+    state->SetUndo();
+    bgPal[1] = 0x14;
+    state->SetUndo();
+    bgPal[2] = 0x24;
+    state->SetUndo();
+    bgPal[3] = 0x34;
+
+    // (0x14, 0x24, 0x34) -> undo(1): (0x14, 0x24, 0x03) -> undo(1): (0x14, 0x02, 0x03)
+    state->Undo(2);
+    TEST_CHECK_(bgPal[2] == 0x02, "Palette[1] should be edited value after two Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x14);
+    TEST_CHECK_(bgPal[2] == 0x02, "Palette[2] should be reverted to index value after two Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
+    TEST_CHECK_(bgPal[3] == 0x03, "Palette[3] should be reverted to index value after two Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
+
+    bgPal[1] = 0x81;
+    state->SetUndo();
+    bgPal[2] = 0x92;
+    state->SetUndo();
+    bgPal[3] = 0xa3;
+
+    state->Undo(1);
+    TEST_CHECK_(bgPal[1] == 0x81, "Palette 1 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x81);
+    TEST_CHECK_(bgPal[2] == 0x92, "Palette 2 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x92);
+    TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
+
+    state->Undo(1);
+    TEST_CHECK_(bgPal[1] == 0x81, "Palette 1 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x81);
+    TEST_CHECK_(bgPal[2] == 0x02, "Palette 2 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
+    TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
+
+    state->Undo(1);
+    TEST_CHECK_(bgPal[1] == 0x01, "Palette 1 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x01);
+    TEST_CHECK_(bgPal[2] == 0x02, "Palette 2 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
+    TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
 }
 
 void test_nametable() {
     setup();
-    state->SetUndo();
 
     // basic Undo/Redo test for nametable
+    state->SetUndo();
     nameTable[2] = 0x10;
     state->Undo(1);
     TEST_CHECK_(nameTable[2] == 0x00, "NameTable should be reverted to original after Undo: 0x%02x expected: 0x00 ", nameTable[2]);
@@ -413,9 +447,9 @@ void test_nametable() {
 
 void test_checkpoint() {
     setup();
-    state->SetUndo();
-    
+
     // Edit the CHR twice to set two different undo points.
+    state->SetUndo();
     chr[2] = 0x20;
     state->SetUndo();
     chr[3] = 0x30;
@@ -435,9 +469,9 @@ void test_checkpoint() {
 
 void test_metaspritename() {
     setup();
-    state->SetUndo();
 
     // basic Undo/Redo test for palette
+    state->SetUndo();
     metaSpriteNames[2] = "chillin";
     state->Undo(1);
     TEST_CHECK_(metaSpriteNames[2] == "Metasprite 2", "Metasprite Name should be reverted to original after Undo: %s expected: \"Metasprite 2\" ", metaSpriteNames[2].c_str());

@@ -7,3 +7,6 @@ __history/
 *.cgl
 *.drc
 *.tds
+*.pal
+*.asm
+relwithdebinfo/

@@ -7,7 +7,7 @@
 #include "UnitMain.h"
 #include "UnitNavigator.h"
 #include "UnitNavThread.h"
-#include "WeakRef.h"
+#include "UnitState.h"
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
@@ -20,8 +20,6 @@ int cueChunkY=0;
 
 extern bool openByFileDone;
 extern bool bProcessDrawNavOn;
-extern unsigned char nameTable[NAME_MAX_SIZE];
-extern unsigned char attrTable[ATTR_MAX_SIZE];
 extern unsigned char nameCopy[NAME_MAX_SIZE];
 extern unsigned char chrSelected[256];
 extern int nameTableViewX;
@@ -33,9 +31,6 @@ extern int nameYC;
 
 extern int nullTile;
 extern int tileActive;
-
-extern WeakRef<s32> nameTableWidth;
-extern WeakRef<s32> nameTableHeight;
 
 extern int tileSelRectWdt;
 extern int tileSelRectHgt;

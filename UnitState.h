@@ -22,6 +22,14 @@ extern WeakRef<s32> spriteGridX;
 extern WeakRef<s32> spriteGridY;
 extern AnsiString* metaSpriteNames;
 
+#define BG_PAL_SIZE      (4 * 16)
+#define CHR_SIZE         8192
+#define METASPRITES_SIZE (256 * 64 * 4)
+#define METASPRITES_NAME_SIZE 256
+#define NAMETABLE_MAX_WIDTH 4096
+#define NAMETABLE_MAX_HEIGHT 4096
+#define NAMETABLE_MAX_SIZE (NAMETABLE_MAX_WIDTH * NAMETABLE_MAX_HEIGHT)
+
 class State {
 public:
     /**
@@ -73,23 +81,28 @@ public:
     /**
      * Helper function that copies all data from curr into prev
      */
-    void CopyCurrentState();
+	void CopyCurrentState();
+
+	/**
+	 * Update the global pointers to this state's current pointer
+	 */
+	void MakeCurrent();
 
     class Values {
     public:
         /**
          * NES raw state data that we track.
          */
-        u8 bgPal[4 * 16];
-        u8 chr[8192];
-        u8 metaSprites[256 * 64 * 4];
+        u8 bgPal[BG_PAL_SIZE];
+        u8 chr[CHR_SIZE];
+        u8 metaSprites[METASPRITES_SIZE];
 		s32 nameTableWidth;
 		s32 nameTableHeight;
         s32 spriteGridX;
         s32 spriteGridY;
         std::vector<u8> nameTable;
         std::vector<u8> attrTable;
-        AnsiString metaSpriteNames[256];
+        AnsiString metaSpriteNames[METASPRITES_NAME_SIZE];
 
         // Stores a list of all the values that we are tracking in the state
         std::vector<ValueSerialize::Interface*> fields;
@@ -97,22 +110,25 @@ public:
         Values() : bgPal(), chr(), metaSprites(), nameTableWidth(32), nameTableHeight(30),
             spriteGridX(0), spriteGridY(0), nameTable(), attrTable(), metaSpriteNames(), fields() {
             using namespace ValueSerialize;
-            fields.push_back(new Fixed<u8, sizeof(bgPal)>(bgPal));
-            fields.push_back(new Fixed<u8, sizeof(chr)>(chr));
-            fields.push_back(new Fixed<u8, sizeof(metaSprites)>(metaSprites));
+            fields.push_back(new Fixed<u8, BG_PAL_SIZE>(bgPal));
+            fields.push_back(new Fixed<u8, CHR_SIZE>(chr));
+            fields.push_back(new Fixed<u8, METASPRITES_SIZE>(metaSprites));
 			fields.push_back(new Fixed<s32>(&nameTableWidth));
             fields.push_back(new Fixed<s32>(&nameTableHeight));
             fields.push_back(new Fixed<s32>(&spriteGridX));
             fields.push_back(new Fixed<s32>(&spriteGridY));
             fields.push_back(new Resizeable<std::vector<u8> >(&nameTable));
             fields.push_back(new Resizeable<std::vector<u8> >(&attrTable));
-            fields.push_back(new Fixed<AnsiString, 256>(metaSpriteNames));
+            fields.push_back(new Fixed<AnsiString, METASPRITES_NAME_SIZE>(metaSpriteNames));
         }
 
         ~Values() {
             for (u32 i = 0; i < fields.size(); ++i) {
                 delete fields[i];
-            }
+			}
+			fields.clear();
+			nameTable.clear();
+			attrTable.clear();
         }
 
         inline std::size_t NameSize() {
@@ -199,12 +215,6 @@ private:
  * This updates the global `bgPal` `chr` etc pointers to point to the new `global_state` as well.
  */
 void SwapGlobalState(State** global, State** checkpoint);
-
-// Main state used for undo tracking tests
-extern State* state;
-// Create a second state thats used for the checkpointing tests
-extern State* checkpoint;
-
 
 //---------------------------------------------------------------------------
 #endif

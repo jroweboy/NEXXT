@@ -15,7 +15,7 @@
 		<BCBPROJECT>
       <project version="10.0">
         <property category="build.config" name="active" value="0"/>
-        <property category="build.config" name="count" value="1"/>
+        <property category="build.config" name="count" value="2"/>
         <property category="build.config" name="excludedefaultforzero" value="0"/>
         <property category="build.config.0" name="builddir" value="Debug"/>
         <property category="build.config.0" name="key" value="Debug_Build"/>
@@ -28,7 +28,12 @@
         <property category="build.config.1" name="settings.win32b" value="default"/>
         <property category="build.config.1" name="type" value="Toolset"/>
         <property category="build.config.1" name="win32.win32b.builddir" value="."/>
-        <property category="build.node" name="lastconfig" value="Release_Build"/>
+        <property category="build.config.2" name="key" value="config2"/>
+        <property category="build.config.2" name="name" value="RelWithDebInfo"/>
+        <property category="build.config.2" name="settings.win32b" value="default"/>
+        <property category="build.config.2" name="type" value="Toolset"/>
+        <property category="build.config.2" name="win32.win32b.builddir" value="relwithdebinfo"/>
+        <property category="build.node" name="lastconfig" value="Debug_Build"/>
         <property category="build.node" name="libraries" value="vcl.lib rtl.lib"/>
         <property category="build.node" name="name" value="NEXXT.exe"/>
         <property category="build.node" name="packages" value="vclx;vcl;rtl"/>
@@ -37,6 +42,7 @@
         <property category="build.platform" name="active" value="win32"/>
         <property category="build.platform" name="win32.Debug_Build.toolset" value="win32b"/>
         <property category="build.platform" name="win32.Release_Build.toolset" value="win32b"/>
+        <property category="build.platform" name="win32.config2.toolset" value="win32b"/>
         <property category="build.platform" name="win32.default" value="win32b"/>
         <property category="build.platform" name="win32.enabled" value="1"/>
         <property category="build.platform" name="win32.win32b.enabled" value="1"/>
@@ -46,11 +52,18 @@
         <property category="win32.*.win32b.tasm32" name="param.xreffile.merge" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="container.SelectedOptimizations.containerenabled" value="0"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="container.SelectedWarnings.containerenabled" value="1"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.3.enabled" value="0"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.6.enabled" value="1"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.AT.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.D.arg.1" value="_DEBUG"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.D.arg.merge" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.D.enabled" value="1"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.H.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.P.enabled" value="0"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.pc.enabled" value="0"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.pr.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.r.enabled" value="1"/>
+        <property category="win32.Debug_Build.win32b.bcc32" name="option.vG3.enabled" value="0"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.vGc.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.vGd.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.bcc32" name="option.vGt.enabled" value="1"/>
@@ -61,41 +74,61 @@
         <property category="win32.Debug_Build.win32b.dcc32" name="option.D.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.dcc32" name="option.V.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="container.SelectedWarnings.containerenabled" value="0"/>
+        <property category="win32.Debug_Build.win32b.ilink32" name="option.C.enabled" value="0"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.GD.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.L.arg.1" value="$(BDS)\lib\debug"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.L.arg.merge" value="1"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.L.enabled" value="1"/>
-        <property category="win32.Debug_Build.win32b.ilink32" name="option.dynamicrtl.enabled" value="1"/>
+        <property category="win32.Debug_Build.win32b.ilink32" name="option.c.enabled" value="0"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.map_segments.enabled" value="0"/>
+        <property category="win32.Debug_Build.win32b.ilink32" name="option.r.enabled" value="0"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.s.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="option.w.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.1" value="cg32.lib"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.2" value="$(LIBRARIES)"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.3" value="import32.lib"/>
-        <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.4" value="cp32mti.lib"/>
+        <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.4" value="cp32mt.lib"/>
         <property category="win32.Debug_Build.win32b.ilink32" name="param.libfiles.merge" value="0"/>
         <property category="win32.Debug_Build.win32b.tasm32" name="option.z.enabled" value="1"/>
         <property category="win32.Debug_Build.win32b.tasm32" name="option.zd.enabled" value="0"/>
         <property category="win32.Debug_Build.win32b.tasm32" name="option.zi.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.bcc32" name="container.SelectedOptimizations.containerenabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="container.SelectedWarnings.containerenabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.3.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.6.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.D.arg.1" value="NDEBUG"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.D.arg.merge" value="1"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.D.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.H.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.Hi.arg.merge" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.Hi.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.O2.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.Od.enabled" value="0"/>
-        <property category="win32.Release_Build.win32b.bcc32" name="option.k.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.U.arg.1" value="DEBUG"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.U.arg.merge" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.U.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.pc.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.pr.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.r.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.rdw.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.v.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.v4.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.vG.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.bcc32" name="option.vi.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.bcc32" name="option.y.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.dcc32" name="option.$D.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.dcc32" name="option.$O.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.dcc32" name="option.V.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.ilink32" name="container.SelectedWarnings.containerenabled" value="1"/>
-        <property category="win32.Release_Build.win32b.ilink32" name="option.GD.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.C.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.GD.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.Gt.enabled" value="1"/>
         <property category="win32.Release_Build.win32b.ilink32" name="option.L.arg.1" value="$(BDS)\lib\release"/>
         <property category="win32.Release_Build.win32b.ilink32" name="option.L.arg.merge" value="1"/>
         <property category="win32.Release_Build.win32b.ilink32" name="option.L.enabled" value="1"/>
-        <property category="win32.Release_Build.win32b.ilink32" name="option.v.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.map_segments.enabled" value="0"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.s.enabled" value="1"/>
+        <property category="win32.Release_Build.win32b.ilink32" name="option.v.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.ilink32" name="param.libfiles.1" value="cg32.lib"/>
         <property category="win32.Release_Build.win32b.ilink32" name="param.libfiles.2" value="$(LIBRARIES)"/>
         <property category="win32.Release_Build.win32b.ilink32" name="param.libfiles.3" value="import32.lib"/>
@@ -105,6 +138,45 @@
         <property category="win32.Release_Build.win32b.tasm32" name="option.zd.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.tasm32" name="option.zi.enabled" value="0"/>
         <property category="win32.Release_Build.win32b.tasm32" name="option.zn.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="container.SelectedOptimizations.containerenabled" value="0"/>
+        <property category="win32.config2.win32b.bcc32" name="container.SelectedWarnings.containerenabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.3.enabled" value="0"/>
+        <property category="win32.config2.win32b.bcc32" name="option.6.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.D.arg.1" value="NDEBUG"/>
+        <property category="win32.config2.win32b.bcc32" name="option.D.arg.merge" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.D.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.H.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.Hi.arg.merge" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.Hi.enabled" value="0"/>
+        <property category="win32.config2.win32b.bcc32" name="option.O2.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.Od.enabled" value="0"/>
+        <property category="win32.config2.win32b.bcc32" name="option.pc.enabled" value="0"/>
+        <property category="win32.config2.win32b.bcc32" name="option.pr.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.r.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.rdw.enabled" value="1"/>
+        <property category="win32.config2.win32b.bcc32" name="option.vG.enabled" value="0"/>
+        <property category="win32.config2.win32b.dcc32" name="option.$D.enabled" value="0"/>
+        <property category="win32.config2.win32b.dcc32" name="option.$O.enabled" value="1"/>
+        <property category="win32.config2.win32b.dcc32" name="option.V.enabled" value="0"/>
+        <property category="win32.config2.win32b.ilink32" name="container.SelectedWarnings.containerenabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.C.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.GD.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.Gt.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.L.arg.1" value="$(BDS)\lib\release"/>
+        <property category="win32.config2.win32b.ilink32" name="option.L.arg.merge" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.L.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.map_segments.enabled" value="0"/>
+        <property category="win32.config2.win32b.ilink32" name="option.s.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="option.v.enabled" value="1"/>
+        <property category="win32.config2.win32b.ilink32" name="param.libfiles.1" value="cg32.lib"/>
+        <property category="win32.config2.win32b.ilink32" name="param.libfiles.2" value="$(LIBRARIES)"/>
+        <property category="win32.config2.win32b.ilink32" name="param.libfiles.3" value="import32.lib"/>
+        <property category="win32.config2.win32b.ilink32" name="param.libfiles.4" value="cp32mt.lib"/>
+        <property category="win32.config2.win32b.ilink32" name="param.libfiles.merge" value="0"/>
+        <property category="win32.config2.win32b.tasm32" name="option.z.enabled" value="0"/>
+        <property category="win32.config2.win32b.tasm32" name="option.zd.enabled" value="0"/>
+        <property category="win32.config2.win32b.tasm32" name="option.zi.enabled" value="0"/>
+        <property category="win32.config2.win32b.tasm32" name="option.zn.enabled" value="1"/>
         <optionset name="all_configurations">
           <property category="node" name="displayname" value="All Configurations"/>
           <property category="win32.*.win32b.bcc32" name="container.SelectedOptimizations.containerenabled" value="0"/>
@@ -329,6 +401,7 @@
         <FILE FILENAME="UnitNavThread.cpp" CONTAINERID="CCompiler" LOCALCOMMAND="" UNITNAME="UnitNavThread" FORMNAME="" DESIGNCLASS="" ADDITIONAL="UnitNavThread.h"/>
         <FILE FILENAME="UnitState.cpp" CONTAINERID="CCompiler" LOCALCOMMAND="" UNITNAME="UnitState" FORMNAME="" DESIGNCLASS="" ADDITIONAL="UnitState.h"/>
         <FILE FILENAME="UnitStatePrivate.h" CONTAINERID="" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
+        <FILE FILENAME="NexxtSession.h" CONTAINERID="" LOCALCOMMAND="" UNITNAME="" FORMNAME="" DESIGNCLASS=""/>
       </FILELIST>
       <IDEOPTIONS>
         <VersionInfo>
@@ -374,7 +447,7 @@
           <Parameters Name="UseRemoteLauncher">False</Parameters>
           <Parameters Name="RemoteCWD"></Parameters>
           <Parameters Name="RemoteDebug">False</Parameters>
-          <Parameters Name="Debug Symbols Search Path">C:\Users\jroweboy\Desktop\NEXXT 0.18.3;C:\Users\jroweboy\Desktop\NEXXT 0.18.3\src</Parameters>
+          <Parameters Name="Debug Symbols Search Path"></Parameters>
           <Parameters Name="LoadAllSymbols">True</Parameters>
           <Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
         </Parameters>
