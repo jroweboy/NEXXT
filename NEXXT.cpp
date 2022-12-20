@@ -24,7 +24,7 @@ WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	try
 	{
 		Application->Initialize();
-		Application->Title = "NEXXT 0.18.3";
+		Application->Title = "NEXXT 0.20.0";
 		Application->CreateForm(__classid(TFormMain), &FormMain);
 		Application->CreateForm(__classid(TFormCHREditor), &FormCHREditor);
 		Application->CreateForm(__classid(TFormSwapColors), &FormSwapColors);
@@ -39,6 +39,10 @@ WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		Application->CreateForm(__classid(TFormBrush), &FormBrush);
 		Application->CreateForm(__classid(TAboutBox), &AboutBox);
 		Application->CreateForm(__classid(TFormNavigator), &FormNavigator);
+
+		
+
+
 		Application->Run();
 	}
 	catch (Exception &exception)

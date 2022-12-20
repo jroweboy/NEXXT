@@ -40,6 +40,11 @@ extern bool bWarnMsprYellow;
 extern bool bWarnMsprOrange;
 extern bool bWarnMsprRed;
 
+extern bool bExportPalFilename;
+extern bool bExportPalSet;
+
+
+
 extern int iGlobalAlpha;
 extern int iRadioOpenSave;
 extern bool bSnapToScreen;
@@ -186,7 +191,8 @@ void __fastcall TFormPreferences::OKBtnClick(TObject *Sender)
 	FormMain->MSaveIncName->Checked			=	CheckIncludeNames->Checked;
 	FormMain->MSaveIncAttr->Checked			=	CheckIncludeAttributes->Checked;
 	FormMain->MSaveRLE->Checked				=	CheckRLECompress->Checked;
-
+	bExportPalFilename 	= CheckExportPalFilename->Checked;
+	 bExportPalSet		= CheckExportPalSet->Checked;
 	//grids & guides
 	bWarnMsprYellow							=	CheckMsprYellow->Checked;
 	bWarnMsprOrange 						= 	CheckMsprOrange->Checked;
@@ -324,6 +330,9 @@ void __fastcall TFormPreferences::FormShow(TObject *Sender)
 	CheckIncludeAttributes->Checked		=	FormMain->MSaveIncAttr->Checked;
 	CheckRLECompress->Checked		   	=	FormMain->MSaveRLE->Checked;
 
+	CheckExportPalFilename->Checked	= bExportPalFilename;
+	CheckExportPalSet->Checked		= bExportPalSet;
+
 	//grids & guides
 	CheckMsprYellow->Checked			= bWarnMsprYellow;
 	CheckMsprOrange->Checked            = bWarnMsprOrange;
@@ -426,6 +435,9 @@ void __fastcall TFormPreferences::HelpBtnClick(TObject *Sender)
 	RadioFFTerminator->Checked	=	false;
 	RadioSingle00->Checked		=	false;
 	RadioDouble00->Checked		=	false;
+
+	CheckExportPalFilename->Checked = true;
+	CheckExportPalSet->Checked	= true;
 
 	CheckAskSprName->Checked	=	false;
 	CheckAskBankName->Checked	=	true;

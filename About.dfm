@@ -70,7 +70,7 @@ object AboutBox: TAboutBox
   end
   object btnCommunity: TButton
     Left = 239
-    Top = 39
+    Top = 36
     Width = 96
     Height = 25
     Caption = 'NEXXT forums'
@@ -79,7 +79,7 @@ object AboutBox: TAboutBox
   end
   object btnTwitter: TButton
     Left = 239
-    Top = 101
+    Top = 120
     Width = 96
     Height = 25
     Caption = 'Twitter'
@@ -88,7 +88,7 @@ object AboutBox: TAboutBox
   end
   object btnPatreon: TButton
     Left = 239
-    Top = 132
+    Top = 148
     Width = 96
     Height = 25
     Caption = 'Patreon'
@@ -97,11 +97,20 @@ object AboutBox: TAboutBox
   end
   object btnShiru: TButton
     Left = 239
-    Top = 70
+    Top = 64
     Width = 96
     Height = 25
     Caption = 'Shiru'#39's page'
     TabOrder = 6
     OnClick = btnShiruClick
+  end
+  object Button1: TButton
+    Left = 239
+    Top = 92
+    Width = 96
+    Height = 25
+    Caption = 'Mastodon'
+    TabOrder = 7
+    OnClick = Button1Click
   end
 end

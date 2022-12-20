@@ -6,13 +6,13 @@
 #include "UnitMain.h"
 #include "UnitCHREditor.h"
 #include "UnitManageMetasprites.h"
+#include "UnitState.h"
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
 TFormManageMetasprites *FormManageMetasprites;
 
 extern AnsiString metaSpriteBankName;
-extern AnsiString* metaSpriteNames;
 extern AnsiString tmpMetaSprName;
 extern int metaSpriteActive;
 extern unsigned char* metaSprites;

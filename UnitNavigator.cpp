@@ -5,9 +5,9 @@
 
 
 #include "UnitMain.h"
+#include "UnitState.h"
 #include "UnitNavigator.h"
 #include "UnitNavThread.h"
-#include "UnitState.h"
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
@@ -127,7 +127,7 @@ void __fastcall TFormNavigator::Draw(bool doSnap, bool doAlign)
 		if(FormNavigator->ClientWidth - minW*8*fStretchScale<windowSizeSnapRange*2)  FormNavigator->ClientWidth=minW*8*fStretchScale;
 		if(FormNavigator->ClientHeight - minH*8*fStretchScale<windowSizeSnapRange*2) FormNavigator->ClientHeight=minH*8*fStretchScale;
 
-
+        if(FormNavigator->ClientHeight > GetSystemMetrics(SM_CYFULLSCREEN)) FormNavigator->ClientHeight  = GetSystemMetrics(SM_CYFULLSCREEN);
 	}
 	int barVal=windowSizeSnapRange;
 
@@ -204,8 +204,8 @@ void __fastcall TFormNavigator::Draw(bool doSnap, bool doAlign)
         			y+=8;
         		}
         
-        
-          bufBmp->Assign(Map1->Picture->Bitmap);
+
+		  bufBmp->Assign(Map1->Picture->Bitmap);
         
         
          if(nameSelection.left>=0&&nameSelection.top>=0)
@@ -273,7 +273,7 @@ void __fastcall TFormNavigator::Draw(bool doSnap, bool doAlign)
         	Map1->Canvas->Rectangle(r);
          }
         
-         //Map1->Picture->Bitmap->Assign(bufBmp);
+		 //Map1->Picture->Bitmap->Assign(bufBmp);
 			Map1->Repaint();
 
 			tempskip:
@@ -282,7 +282,7 @@ void __fastcall TFormNavigator::Draw(bool doSnap, bool doAlign)
 void __fastcall TFormNavigator::DrawRange(int tx,int ty,int tw,int th, bool repaint)
 {
    if(bProcessDrawNavOn) return;  //not in use; multithreading is still an experiment.
-
+   Map1->Picture->Bitmap->Assign(bufBmp);
    int i,j,x,y,tile;
    int w=nameTableWidth;
    int h=nameTableHeight;
@@ -339,6 +339,7 @@ void __fastcall TFormNavigator::DrawRange(int tx,int ty,int tw,int th, bool repa
 
   if(repaint) Map1->Repaint();
   bufBmp->Assign(Map1->Picture->Bitmap);
+  UpdateLines(false);
 }
 void __fastcall TFormNavigator::UpdateLines(bool getBuffer)
 {
@@ -349,7 +350,9 @@ void __fastcall TFormNavigator::UpdateLines(bool getBuffer)
 
 
 
-	if(getBuffer) Map1->Picture->Bitmap->Assign(bufBmp);
+	if(getBuffer) {
+	Map1->Picture->Bitmap->Assign(bufBmp);
+	}
     if(nameSelection.left>=0&&nameSelection.top>=0)
 	{
 		r.left  =nameSelection.left;
@@ -430,6 +433,7 @@ void __fastcall TFormNavigator::FormResize(TObject *Sender)
     //note: FormResize is called once on win7 classic mode, but on every registered mouse move+resize event on win10
 
 	Draw(false,true);
+    if(FormNavigator->Height > GetSystemMetrics(SM_CYFULLSCREEN)) FormNavigator->ClientHeight  = GetSystemMetrics(SM_CYFULLSCREEN);
 	//if user is hesitant in the "goldilocks snap zone" for half a second, suggest snap.
 	ResizeTimer->Enabled=false;  //reset timer on every resize event
 	ResizeTimer->Interval=500;
@@ -496,9 +500,9 @@ void __fastcall TFormNavigator::ResizeTimerTimer(TObject *Sender)
 void __fastcall TFormNavigator::FormCanResize(TObject *Sender, int &NewWidth,
 	  int &NewHeight, bool &Resize)
 {
-    //snaps quickly after accepted resize if in the "goldilocks zone"
-	ResizeTimer->Interval=100;
-	ResizeTimer->Enabled=true;
+	//snaps quickly after accepted resize if in the "goldilocks zone"
+	//ResizeTimer->Interval=100;
+	//ResizeTimer->Enabled=true;
 
 	
 }
@@ -596,6 +600,7 @@ void __fastcall TFormNavigator::Map1MouseDown(TObject *Sender,
 		//legal only for a !modulo of the copy w/h.
 		//Right now they´re in the MouseDown event.
 		FormMain->SetUndo();
+
 		//set selection
 		nameSelection.left  =nx;
 		nameSelection.top   =ny;
@@ -612,12 +617,13 @@ void __fastcall TFormNavigator::Map1MouseDown(TObject *Sender,
 		nameSelection.top =-1;
 
 		cueStats=true;
-        UpdateLines(false);
+		UpdateLines(false);
 		//Draw(false,false);   // bookmark: this could use a local update
 		return;
 	}
 	else if(Shift.Contains(ssShift)&&Shift.Contains(ssLeft))   //begin selection
 	{
+
 		nameSelection.left  =nx;
 		nameSelection.top   =ny;
 		nameSelection.right =nameSelection.left+1;
@@ -638,9 +644,9 @@ void __fastcall TFormNavigator::Map1MouseDown(TObject *Sender,
 
 		FormMain->UpdateTiles(true);
 		FormMain->UpdateNameTable(-1,-1,true);
-		//Draw(false,false);
-		//FormMain->NameLinesTimer->Enabled=true;
-		CueLinesTimer->Enabled=true;
+
+		UpdateLines(true);
+
 	}
 	else if (Shift.Contains(ssLeft))  //drag view
 	{
@@ -1073,9 +1079,11 @@ void __fastcall TFormNavigator::Map1DragDrop(TObject *Sender, TObject *Source,
 	  
 	}
 	int dx,dy,dw,dh;
+    if(nameSelection.left>=0&&nameSelection.top>=0)
+	{
 	FormMain->GetSelection(nameSelection,dx,dy,dw,dh);
 	DrawRange(dx,dy,dw,dh,false);
-
+	}
 	nameSelection.left 		= destRect.left-cAlWdt;
 	nameSelection.top 		= destRect.top-cAlHgt;
 	nameSelection.right 	= destRect.right-cAlWdt;
@@ -1107,7 +1115,8 @@ void __fastcall TFormNavigator::FormCreate(TObject *Sender)
 
 	bufBmp=new Graphics::TBitmap();
 	unsigned int width = nameTableWidth*8;
-	bufBmp->SetSize(nameTableWidth*8,nameTableHeight*8);
+	unsigned int height = nameTableHeight*8;
+	bufBmp->SetSize(width, height);
 	bufBmp->PixelFormat=pf4bit;
 
 	//Map1->Picture=new TPicture();

@@ -56,7 +56,8 @@ const bool 	FAC_0F=true;
 const bool 	FAC_SHARED=true;
 
 
-
+// Forward declare State
+class State;
 
 
 enum {
@@ -81,8 +82,7 @@ const float emphasis[8][3]={//from nintech.txt
 	{ 75.0, 75.0, 75.0}
 };
 
-// Forward declare State
-class State;
+
 
 //---------------------------------------------------------------------------
 
@@ -595,6 +595,7 @@ class TFormMain : public TForm
 	TMenuItem *PPUdump1;
 	TMenuItem *N6;
 	TTimer *NameLinesTimer;
+	TMenuItem *N72;
 
 	void __fastcall FormPaint(TObject *Sender);
 	void __fastcall FormCreate(TObject *Sender);
@@ -920,7 +921,8 @@ class TFormMain : public TForm
 private:	// User declarations
 public:		// User declarations
 	__fastcall TFormMain(TComponent* Owner);
-    void __fastcall EnableDisableTypeConflictShortcuts(bool forceDisable);
+	void __fastcall pal_validate();
+	void __fastcall EnableDisableTypeConflictShortcuts(bool forceDisable);
 	void __fastcall DrawPalettes(void);
 	void __fastcall DrawCol(int,int,int,int,bool);
 	void __fastcall DrawBGPal(int,int,int);
@@ -945,7 +947,7 @@ public:		// User declarations
 	void __fastcall CopyMapCodeASM(void);
 	void __fastcall CopyMapCodeC(bool rle);
 	void __fastcall PasteMap(void);
-	void __fastcall FillMap(void);
+	void __fastcall FillMap(bool bUseNull);
 	void __fastcall GetSelection(TRect,int&,int&,int&,int&);
 	void __fastcall OpenAll(AnsiString);
 	void __fastcall UpdateStats(void);

@@ -9,4 +9,4 @@ __history/
 *.tds
 *.pal
 *.asm
-relwithdebinfo/
+build/

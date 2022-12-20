@@ -1221,10 +1221,6 @@ object FormMain: TFormMain
       object TabSheetSprite: TTabSheet
         Caption = '[F2] Metasprites'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object GroupBoxSpriteList: TGroupBox
           Left = 0
           Top = 0
@@ -2690,10 +2686,6 @@ object FormMain: TFormMain
       object N12: TMenuItem
         Caption = '-'
       end
-      object MCHRSwapColors: TMenuItem
-        Caption = 'Swap &colours...'
-        OnClick = MCHRSwapColorsClick
-      end
       object MCHRSwapBanks: TMenuItem
         Caption = 'Swap &pattern tables'
         OnClick = MCHRSwapBanksClick
@@ -3087,6 +3079,13 @@ object FormMain: TFormMain
           ShortCut = 24653
           OnClick = Red1Click
         end
+      end
+      object N72: TMenuItem
+        Caption = '-'
+      end
+      object MCHRSwapColors: TMenuItem
+        Caption = 'S&wap colours...'
+        OnClick = MCHRSwapColorsClick
       end
       object N48: TMenuItem
         Caption = '-'

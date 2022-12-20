@@ -27,7 +27,7 @@ object FormPreferences: TFormPreferences
       Top = 5
       Width = 417
       Height = 256
-      ActivePage = TabSheet6
+      ActivePage = TabSheet4
       Align = alClient
       TabOrder = 0
       object TabSheet1: TTabSheet
@@ -652,12 +652,12 @@ object FormPreferences: TFormPreferences
         object GroupBox1: TGroupBox
           Left = 3
           Top = 3
-          Width = 126
+          Width = 129
           Height = 81
           Caption = 'Save map/screen'
           TabOrder = 3
           object CheckIncludeNames: TCheckBox
-            Left = 3
+            Left = 11
             Top = 16
             Width = 105
             Height = 17
@@ -665,7 +665,7 @@ object FormPreferences: TFormPreferences
             TabOrder = 0
           end
           object CheckIncludeAttributes: TCheckBox
-            Left = 3
+            Left = 11
             Top = 32
             Width = 105
             Height = 17
@@ -673,12 +673,36 @@ object FormPreferences: TFormPreferences
             TabOrder = 1
           end
           object CheckRLECompress: TCheckBox
-            Left = 3
+            Left = 11
             Top = 48
-            Width = 120
+            Width = 105
             Height = 17
             Caption = 'Force NESlib RLE'
             TabOrder = 2
+          end
+        end
+        object GroupBox11: TGroupBox
+          Left = 135
+          Top = 3
+          Width = 112
+          Height = 81
+          Caption = 'Palette to clipboard'
+          TabOrder = 4
+          object CheckExportPalFilename: TCheckBox
+            Left = 11
+            Top = 16
+            Width = 97
+            Height = 17
+            Caption = 'Filename in label'
+            TabOrder = 0
+          end
+          object CheckExportPalSet: TCheckBox
+            Left = 11
+            Top = 32
+            Width = 97
+            Height = 17
+            Caption = 'Set # in label'
+            TabOrder = 1
           end
         end
       end

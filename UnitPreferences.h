@@ -141,6 +141,9 @@ __published:
 	TRadioButton *RadioOpenSave1;
 	TRadioButton *RadioOpenSave2;
 	TRadioButton *RadioOpenSave3;
+	TGroupBox *GroupBox11;
+	TCheckBox *CheckExportPalFilename;
+	TCheckBox *CheckExportPalSet;
 	void __fastcall OKBtnClick(TObject *Sender);
 	void __fastcall FormShow(TObject *Sender);
 	void __fastcall HelpBtnClick(TObject *Sender);

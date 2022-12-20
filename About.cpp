@@ -16,7 +16,7 @@ __fastcall TAboutBox::TAboutBox(TComponent* AOwner)
 void __fastcall TAboutBox::FormShow(TObject *Sender)
 {
 	ProductName->Caption=Application->Title;
-	StaticText1->Caption="Build date: November 1st, 2022.\n\n\n\n\n\n\nDeveloped by FrankenGraphics.\nBased on NESST; developed by Shiru.\n\nThis software is Public Domain.\n";
+	StaticText1->Caption="Build date: December 14th, 2022.\n\n\n\n\n\n\nDeveloped by FrankenGraphics.\nBased on NESST; developed by Shiru.\n\nThis software is Public Domain.\n";
 	StaticText1->Width=200;
 	StaticText1->Height=146;
 }
@@ -55,6 +55,12 @@ void __fastcall TAboutBox::btnTwitterClick(TObject *Sender)
 void __fastcall TAboutBox::btnPatreonClick(TObject *Sender)
 {
 	ShellExecute(NULL, "open", "https://www.patreon.com/frankengraphics", "", NULL, SW_RESTORE);
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TAboutBox::Button1Click(TObject *Sender)
+{
+	ShellExecute(NULL, "open", "https://mastodon.art/@FrankenGraphics", "", NULL, SW_RESTORE);
 }
 //---------------------------------------------------------------------------
 

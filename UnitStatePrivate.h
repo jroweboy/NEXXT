@@ -199,7 +199,7 @@ namespace ValueSerialize {
 
             u32 finallen = this->GetSize() ^ oldlen ^ newlen;
             if (oldlen != newlen) {
-                out << "  " << name << " length changed: Oldlen=" << oldlen << " Newlen=" << newlen << " Finallen=" << finallen << std::endl;
+                out << "  " << name.c_str() << " length changed: Oldlen=" << oldlen << " Newlen=" << newlen << " Finallen=" << finallen << std::endl;
             }
 
             u8* data = this->GetRawData();
@@ -207,7 +207,7 @@ namespace ValueSerialize {
             for (u32 count = 0; count < finallen; ++count) {
                 u8 val = data[count] ^ patch[index++];
                 if (val != data[count]) {
-                    out << "  " << name << "[" << count << "]" << " changed: value=" << hex(data[count]) << " patched=" << hex(val) << std::endl;
+                    out << "  " << name.c_str() << "[" << count << "]" << " changed: value=" << hex(data[count]) << " patched=" << hex(val) << std::endl;
                 }
             }
             index += patchsize - finallen;

@@ -1,4 +1,4 @@
-ï»¿//------------------------------------------------------------
+//------------------------------------------------------------
 #include <vcl.h>
 #include <stdio.h>
 #include <Clipbrd.hpp>
@@ -26,6 +26,7 @@
 #pragma resource "*.dfm"
 TFormMain *FormMain;
 
+
 #include "palette.h"
 #include "smallnums.h"
 AnsiString strStat;
@@ -43,7 +44,12 @@ bool bSnapToScreen;
 bool bWarnMsprYellow;
 bool bWarnMsprOrange;
 bool bWarnMsprRed;
+
+bool bExportPalFilename;
+bool bExportPalSet;
+
 bool bKeyEscape;
+bool bIgnoreKey=true;
 
 int basePalette[64];
 
@@ -51,6 +57,7 @@ int outPalette[64];
 int ppuMask;
 
 int ppuMaskSet[4];
+unsigned char palBuf[4*16];
 
 int bgPalCur;
 int bgPalCurOld;
@@ -69,6 +76,10 @@ int colHover;
 int palDragColor;
 int palBank;
 
+unsigned char chrBuf[8192]; //FG: in preparation for stroke-oriented ink algo
+unsigned char chrBufFill[8192]; //test: clean memory buffer
+unsigned char chrCopy[4096];
+
 unsigned char subpalCopy[4]; //for copying a single subpalette
 
 unsigned char tmpNameTable[NAME_MAX_SIZE];
@@ -86,9 +97,6 @@ unsigned char attrCopy[NAME_MAX_SIZE];
 
 bool unsavedChanges;
 
-unsigned char chrCopy[8192];
-unsigned char chrBuf[8192];
-unsigned char chrBufFill[8192];
 TRect chrSelection;
 TRect chrSelBuf;
 TRect nameSelBuf;
@@ -263,6 +271,9 @@ bool prefStartSubpal3=false;
 RECT curMainWinPos;
 
 TRect destRect;
+
+int iSwap_WhichSubpal=0;
+int iSwap_Pal0Subpal=0;
 
 inline const char * const BoolToString(bool b)
 {
@@ -651,7 +662,7 @@ void mem_exchange(unsigned char *src,unsigned char *dst,int len)
 
 
 
-void pal_validate()
+void __fastcall TFormMain::pal_validate()
 {
 	int i,j,col;
 
@@ -665,7 +676,7 @@ void pal_validate()
 		bgPal[palBank*16+3*4+0]=col;
 	}
 
-	//makes illegal or unsafe colours inavailable
+	//makes illegal or unsafe colours unavailable
 	if(safeColsOnly)
 	{
 		for(i=0;i<4;i++)
@@ -912,6 +923,7 @@ void __fastcall TFormMain::DrawTile(TPicture *pic,int x,int y,int tile,int pal,i
 	int rr[8],gg[8],bb[8];
 	int hgrid,vgrid,hcol,vcol;
 	int scale=inputScale;
+	int tyTmp;
 
 	bool bOn = SpeedButtonGridAll->Down;
 	bool bNamDrag = (ImageName->Dragging() || FormNavigator->Map1->Dragging());
@@ -964,7 +976,7 @@ void __fastcall TFormMain::DrawTile(TPicture *pic,int x,int y,int tile,int pal,i
 	//made obsolete
 	//if(bAuto) if(SpeedButtonGridAll->Down==false&&(!ImageName->Dragging())) return;
 	//else	  if(SpeedButtonGridAll->Down==false) return;
-	
+
 	hgrid=0;
 	vgrid=0;
 	hcol=64; //originally 64
@@ -1010,7 +1022,10 @@ void __fastcall TFormMain::DrawTile(TPicture *pic,int x,int y,int tile,int pal,i
 		}
 		if(SpeedButtonGridBlock->Down)
 		{
-			if(!(ty&3))
+			tyTmp = ty;
+			if (((ty / 30) % 2 == 1) && (SpeedButtonGridScreen->Down)) tyTmp -= 2;
+			if(!(tyTmp&3))
+
 			{
 				hcol=128;  //0riginally 128
 				//if(ImageName->Dragging() ) hcol=112;
@@ -1489,7 +1504,7 @@ void __fastcall TFormMain::UpdateTiles(bool updchr)
 	int ui128=128*uiScale;
 	bool bbigTile=(PageControlEditor->ActivePage==TabSheetTile?true:false)&&!bForceNameScale;
 	TRect rect;
-    if(bImageNameAccepted) return;  //this fix is only cosmetic - thereï¿½s something WRONG with holding Alt and with holding Ctrl+Alt in particular when dragging.
+    if(bImageNameAccepted) return;  //this fix is only cosmetic - there¨s something WRONG with holding Alt and with holding Ctrl+Alt in particular when dragging.
 	if(!Visible) return;
 	//if (mouseDraggedTileSel==true&&(Throttle->OnTimer==false)) return;
 	//throttleOKtileSelRect = false;
@@ -1811,7 +1826,7 @@ void ExportBMPToClipboard(char *bitmapBuffer, size_t len, bool cbDoClear)
 void __fastcall TFormMain::CopyCHR(bool copy,bool cut)
 {
 	int i,j,k,pp,ps,x,y,w,h;
-	FormMain->SetUndo();
+	//FormMain->SetUndo();
 
 
 	if(chrSelectRect)
@@ -1909,7 +1924,10 @@ void __fastcall TFormMain::CopyCHR(bool copy,bool cut)
 		UpdateNameTable(-1,-1,true);
 		if (FormNavigator->Visible)
 		{
+			//bMouseOverNav=false;
+			//FormNavigator->CueDrawTimer->Enabled=true;
 			FormNavigator->Draw(false,false);
+            //FormNavigator->Repaint();
 		}
 
 	}
@@ -1919,20 +1937,43 @@ void __fastcall TFormMain::CopyCHR(bool copy,bool cut)
 
 void __fastcall TFormMain::PasteCHR(void)
 {
+	//general
 	int i,j,k,pp,pd,x,y,w,h;
-    int fLen=16;
+
+
+	//used by flex-paste
+	bool b=FormCHREditor->btn2x2mode->Down;
+	int selectThres=b?2:1;
+	bool bIsFlex;
+
+	int xlen;   //width of selection
+	int ylen;   //height of selection
+
+	int maxlen; //the longest a paste run can be; based on clipboard contents
+	int countlen = 0; //manual counter for the above.
+
+
+
+	//used by bitplane masks
+	int fLen=16;
 	int fOff=0;
+
+	//used by colour masks
 	unsigned char mask[16];
 	bool b0 = FormCHREditor->Protect0->Down;
 	bool b1 = FormCHREditor->Protect1->Down;
 	bool b2 = FormCHREditor->Protect2->Down;
 	bool b3 = FormCHREditor->Protect3->Down;
 
+
+	//apply bitplane masks
 	if (!(FormCHREditor->ButtonBitmaskLo->Down||FormCHREditor->ButtonBitmaskHi->Down))
 		{if(Applytopaste1->Checked) return;}
-
 	if (!FormCHREditor->ButtonBitmaskLo->Down&&Applytopaste1->Checked) {fLen-=8; fOff=8;}
 	if (!FormCHREditor->ButtonBitmaskHi->Down&&Applytopaste1->Checked) {fLen-=8;}
+
+
+	//get clipboard
 	OpenClipboard(Handle);
 
 	HGLOBAL hClipBuf = GetClipboardData(CF_CHR);
@@ -1954,22 +1995,41 @@ void __fastcall TFormMain::PasteCHR(void)
 
 	CloseClipboard();
 
+
+	//if clipboard was 2-dimensional
 	if(chrCopyRect)
 	{
 		if(chrCopyWidth<1||chrCopyHeight<1) return;
-
-		GetSelection(chrSelection,x,y,w,h);
 		SetUndo();
+		GetSelection(chrSelection,x,y,w,h);
 
+
+		//determines if flex-paste should be used and modifies for iterations accordingly.
+		bIsFlex = (w>selectThres || h>selectThres);
+		maxlen = chrCopyHeight * chrCopyWidth;
+	
+		if(bIsFlex)
+		{
+		   xlen = w;
+		   ylen = h;
+		}
+		else
+		{
+			xlen = chrCopyWidth;
+			ylen = chrCopyHeight;
+		}
+
+		//start of paste from buffer.
 		pp=0;
 
-		for(i=0;i<chrCopyHeight;i++)
+		for(i=0;i<ylen;i++)
 		{
-			for(j=0;j<chrCopyWidth;j++)
+			for(j=0;j<xlen;j++)
 			{
-				if(x+j<16&&y+i<16)
+				if (countlen >= maxlen) continue;
+
+				if(x+j<16&&y+i<16)  //safety for making sure selection isn´t larger than table.
 				{
-					//project: insert write mask here.
 					for(int m=0;m<16;m++) mask[m]=0xFF; //set mask.
 
 					for(int l=0;l<8;l++)
@@ -1986,35 +2046,84 @@ void __fastcall TFormMain::PasteCHR(void)
 							mask[l+8]	=mask[l]; //makes the 1bit mask applicable to 2bit gfx.
 						}
 					}
-					
+
 					for(k=0;k<fLen;k++)  //pasting tile
 					{
 						pd=bankActive+(x+j)*16+(y+i)*256+k;
-						//chr[pd+fOff]=(chrCopy[pp+k+fOff];  //old 
+
 						chr[pd+fOff]=(chr[pd+fOff]&~mask[k+fOff]);
 						chr[pd+fOff]=chr[pd+fOff]|(chrCopy[pp+k+fOff]&mask[k+fOff]);
 
 					}
 				}
 				pp+=16;
+				countlen++;
 			}
 		}
 	}
+	//if clipboard was 1-dimensional (from multi-select, likely).
 	else
 	{
 		if(chrCopyWidth<1) return;
+		SetUndo();
+		GetSelection(chrSelection,x,y,w,h);
+		bIsFlex = (w>selectThres || h>selectThres);
 
+		if(bIsFlex)
+		{
+		   xlen = w;
+		   ylen = h;
+		}
+		else
+		{
+			xlen = chrCopyWidth;
+			ylen = 1;
+		}
 		pp=0+fOff;
 		pd=tileActive*16+fOff;
-		SelectTile(tileActive);             //added to signal the origin to the user.
-		for(i=0;i<chrCopyWidth;i++)
+
+		//added to signal the origin to the user, in case of no selection or present multi selection
+		if (!bIsFlex) SelectTile(tileActive);
+
+		for(j=0;j<ylen;j++)
 		{
-			pd=bankActive+(pd&0x0fff);
-			for(j=0;j<fLen;j++)
+			for(i=0;i<xlen;i++)
 			{
-				chr[pd++]=chrCopy[pp++];
+				if (countlen >= chrCopyWidth) continue;
+				if (bIsFlex) pd=bankActive+(((x+i)*16 +(y+j)*256 + fOff)&0x0fff);
+				else 		 pd=bankActive+(pd&0x0fff);
+
+				for(int m=0;m<16;m++) mask[m]=0xFF; //set mask.
+
+				for(int l=0;l<8;l++)
+				{
+					//pd=bankActive+(x+j)*16+(y+i)*256+l;
+					//set mask
+					if(Applytopaste2->Checked){
+
+						if (b0) mask[l]	   =~mask[l]	|(chr[pd+l]	|chr[pd+8+l]);
+						if (b1) mask[l]    = mask[l]   &~(chr[pd+l]	&(chr[pd+l]^chr[pd+8+l]));
+						if (b2)	mask[l]    = mask[l]   &~(chr[pd+8+l]	&(chr[pd+l]^chr[pd+8+l]));
+						if (b3) mask[l]	   = mask[l]	-(chr[pd+l]	&chr[pd+8+l]);
+
+						mask[l+8]	=mask[l]; //makes the 1bit mask applicable to 2bit gfx.
+					}
+				}
+
+				for(k=0;k<fLen;k++)
+				{
+					//new; using colour protection masks
+					chr[pd]=(chr[pd]&~mask[k]);          //+fOff
+					chr[pd]=chr[pd]|(chrCopy[pp]&mask[k]);   //+fOff
+					pd++;
+					pp++;
+
+					//original
+					//chr[pd++]=chrCopy[pp++];
+				}
+				if(fLen==8){pp+=8;pd+=8;}
+				countlen++;
 			}
-			if(fLen==8){pp+=8;pd+=8;}
 		}
 	}
 
@@ -3098,10 +3207,10 @@ void __fastcall TFormMain::PasteMap(void)
 
 
 
-void __fastcall TFormMain::FillMap(void)
+void __fastcall TFormMain::FillMap(bool bUseNull)
 {
 	int i,j,x,y,w,h;
-
+	int tile = bUseNull ? nullTile:tileActive;
 	GetSelection(nameSelection,x,y,w,h);
     int bufY=y;
 
@@ -3111,7 +3220,7 @@ void __fastcall TFormMain::FillMap(void)
 	{
 		for(j=0;j<w;j++)
 		{
-			if(SpeedButtonTiles->Down) nameTable[y*nameTableWidth+x+j]=tileActive;
+			if(SpeedButtonTiles->Down) nameTable[y*nameTableWidth+x+j]=tile;
 			if(SpeedButtonPal->Down) AttrSet(x+j,y,palActive,false);
 		}
 		y++;
@@ -3293,7 +3402,7 @@ void __fastcall TFormMain::UpdateStats(void)
 				+" \tOff: $"+IntToHex(off,4)
 				+"\tName: $"+IntToHex(nameTable[off],2)
 				+"\tAtXY: "+IntToStr(nameXC/2)+","+IntToStr(nameYC/2)
-				+"\tAtOff: $"+IntToHex((int)(nameYC/4*8+nameXC/4+nameTableWidth*nameTableHeight),4)
+				+"\tAtOff: $"+IntToHex(nameYC/4*8+nameXC/4+nameTableWidth*nameTableHeight,4)
 				+"."+IntToStr((nameXC&2)+(nameYC&2)*2)
 				+"="+IntToStr(AttrGet(nameXC,nameYC,false,false))
 				+"\t($"+IntToHex(attrTable[nameYC/4*8+nameXC/4],2)+")"
@@ -3428,10 +3537,9 @@ void __fastcall TFormMain::SetUndo(void)
 	unsavedChanges=true;
 	Savesession1->Enabled=true;
 	UpdateStats();
-	//
 
+	// Make a diff of the current state and the previous state, and then copy the data from current into previous
 	state->SetUndo();
-
 }
 
 
@@ -3483,7 +3591,8 @@ void __fastcall TFormMain::Undo(void)
 //	tmp=spriteGridX;        spriteGridX=undoSpriteGridX;	undoSpriteGridX=tmp;
 //	tmp=spriteGridY;        spriteGridY=undoSpriteGridY;    undoSpriteGridY=tmp;
 
-    
+	// Step back into the state history. If theres been any changes since the last SetUndo
+	// creates a new diff and then applies the Undo operation.
 	state->Undo(1);
 
 	UpdateAll();
@@ -3634,6 +3743,8 @@ void nss_put_bytes(FILE *file,const char *name,unsigned char *data,int size)
 	fprintf(file,"\n");
 }
 
+
+
 bool nss_get_bytes(char* data,int size,const char* tag,unsigned char *dst,int dst_size)
 {
 	char c1,c2;
@@ -3642,7 +3753,7 @@ bool nss_get_bytes(char* data,int size,const char* tag,unsigned char *dst,int ds
 	len=strlen(tag);
 	ptr=0;
 
-	while(size>=len)
+	while (size - len > 0) //while(size)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3709,7 +3820,7 @@ char* nss_get_str(char* data,int size,const char* tag)
 	len=strlen(tag);
 	ptr=0;
 
-	while(size>=len)
+	while(size)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3746,7 +3857,7 @@ int nss_get_int(char* data,int size,const char* tag)
 
 	len=strlen(tag);
 
-	while(size>=len)
+	while(size)
 	{
 		if(!memcmp(data,tag,len))
 		{
@@ -3814,12 +3925,15 @@ bool __fastcall TFormMain::LoadSession1x(AnsiString filename)
 
 	//arrays
 
-	fread(chr      ,CHR_SIZE      ,1,file);
+	fread(chr      ,sizeof(chr)      ,1,file);
 	fread(chrCopy  ,sizeof(chrCopy)  ,1,file);
-	fread(nameTable,NAMETABLE_MAX_SIZE,1,file);
-	fread(attrTable,NAMETABLE_MAX_SIZE,1,file);
+	fread(nameTable,sizeof(nameTable),1,file);
+	fread(attrTable,sizeof(attrTable),1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
+//	fread(undoChr  ,sizeof(undoChr)  ,1,file);
+//	fread(undoNameTable,sizeof(undoNameTable),1,file);
+//	fread(undoAttrTable,sizeof(undoAttrTable),1,file);
 
 	//palette
 
@@ -3902,13 +4016,16 @@ bool __fastcall TFormMain::LoadSession2x(AnsiString filename)
 
 	//arrays
 
-	fread(chr      ,CHR_SIZE      ,1,file);
-	fread(chrCopy  ,CHR_SIZE  ,1,file);
-	fread(nameTable,NAMETABLE_MAX_SIZE,1,file);
-	fread(attrTable,NAMETABLE_MAX_SIZE,1,file);
+	fread(chr      ,sizeof(chr)      ,1,file);
+	fread(chrCopy  ,sizeof(chrCopy)  ,1,file);
+	fread(nameTable,sizeof(nameTable),1,file);
+	fread(attrTable,sizeof(attrTable),1,file);
 	fread(nameCopy ,sizeof(nameCopy) ,1,file);
 	fread(attrCopy ,sizeof(attrCopy) ,1,file);
-	fread(metaSprites  ,METASPRITES_SIZE  ,1,file);
+//	fread(undoChr  ,sizeof(undoChr)  ,1,file);
+//	fread(undoNameTable,sizeof(undoNameTable),1,file);
+//	fread(undoAttrTable,sizeof(undoAttrTable),1,file);
+	fread(metaSprites  ,sizeof(metaSprites)  ,1,file);
 
 	//palette
 
@@ -3998,7 +4115,7 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 	file=fopen(filename.c_str(),"rb");
 
 	if(!file) return false;
-
+	
 	fseek(file,0,SEEK_END);
 	size=ftell(file);
 	fseek(file,0,SEEK_SET);
@@ -4008,10 +4125,10 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 
 	fread(text,size,1,file);
 	fclose(file);
-	
-//  palette
 
-	nss_get_bytes(text,size,"Palette=",bgPal,BG_PAL_SIZE);
+	//palette
+
+	nss_get_bytes(text,size,"Palette=",bgPal,sizeof(bgPal));
 
 	//screen buttons state
 
@@ -4053,7 +4170,7 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 	bankActive=nss_get_int(text,size,"VarBankActive=");
 	ppuMask   =nss_get_int(text,size,"VarPPUMask=");
 
-	//relative initialization to useful presets
+	//conditional initialization to useful presets
 	if(bgPalCur==3) bgPalCurOld=0; else bgPalCurOld=3;
 	if(palActive==1) palActiveOld=0;  else palActiveOld=1;
 
@@ -4095,18 +4212,39 @@ bool __fastcall TFormMain::LoadSessionText(AnsiString filename)
 	//nss_get_bytes(text,size,"ppuMaskSet=",ppuMaskSet,sizeof(ppuMaskSet));
 	nss_get_bytes(text,size,"VarCHRSelected=",chrSelected,sizeof(chrSelected));
 
-	//working pal is loaded before everything else.
+	//working pal is loaded before everything else. 
+//	nss_get_bytes(text,size,"PalUndo="    ,bgPalUndo    ,sizeof(bgPalUndo));
 
-	nss_get_bytes(text,size,"CHRMain="    ,chr          ,CHR_SIZE);
-	nss_get_bytes(text,size,"CHRCopy="    ,chrCopy      ,CHR_SIZE);
+	nss_get_bytes(text,size,"CHRMain="    ,chr          ,sizeof(chr));
+	nss_get_bytes(text,size,"CHRCopy="    ,chrCopy      ,sizeof(chrCopy));
+//	nss_get_bytes(text,size,"CHRUndo="    ,undoChr      ,sizeof(undoChr));
 
-	nss_get_bytes(text,size,"NameTable="  ,nameTable    ,state->curr->NameSize());
-	nss_get_bytes(text,size,"NameCopy="   ,nameCopy     ,state->curr->NameSize());
+	nss_get_bytes(text,size,"NameTable="  ,nameTable    ,name_size());
+	nss_get_bytes(text,size,"NameCopy="   ,nameCopy     ,name_size());
+//	nss_get_bytes(text,size,"NameUndo="   ,undoNameTable,name_size());
 
-	nss_get_bytes(text,size,"AttrTable="  ,attrTable    ,state->curr->AttrSize());
-	nss_get_bytes(text,size,"AttrCopy="   ,attrCopy     ,state->curr->AttrSize());
+	nss_get_bytes(text,size,"AttrTable="  ,attrTable    ,attr_size());
+	nss_get_bytes(text,size,"AttrCopy="   ,attrCopy     ,attr_size());
+//	nss_get_bytes(text,size,"AttrUndo="   ,undoAttrTable,attr_size());
 
-	nss_get_bytes(text,size,"MetaSprites=",metaSprites,METASPRITES_SIZE);
+	nss_get_bytes(text,size,"MetaSprites=",metaSprites,sizeof(metaSprites));
+
+	//Checkpoint stuff
+//	nss_get_bytes(text,size,"Checkpoint_Palette="  ,bgPalCheckpoint 		,sizeof(bgPal));
+//	nss_get_bytes(text,size,"Checkpoint_PalUndo="  ,bgPalUndoCheckPoint  ,sizeof(bgPalUndo));
+
+//	nss_get_bytes(text,size,"Checkpoint_CHRMain="  ,checkpointChr          ,sizeof(chr));
+//	nss_get_bytes(text,size,"Checkpoint_CHRUndo="  ,undoCheckpointChr      ,sizeof(undoChr));
+
+//	nss_get_bytes(text,size,"Checkpoint_NameTable=",checkpointNameTable    ,name_size());
+//	nss_get_bytes(text,size,"Checkpoint_NameUndo=" ,undoCheckpointNameTable,name_size());
+
+//	nss_get_bytes(text,size,"Checkpoint_AttrTable=",checkpointAttrTable    ,attr_size());
+//	nss_get_bytes(text,size,"Checkpoint_AttrUndo=" ,undoCheckpointAttrTable,attr_size());
+
+//	nss_get_bytes(text,size,"Checkpoint_MetaSprites=",checkpointMetaSprites,sizeof(metaSprites));
+
+
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -4177,14 +4315,14 @@ bool __fastcall TFormMain::LoadSession(AnsiString filename)
 	fclose(file);
 
 	ver=0;
+    
 	// jroweboy:
 	// New file is likely to load so drop the old state and checkpoint and start fresh
 	// We can't know if the file will load until later, but we need the new state setup first, so
 	// we go ahead and promote a new state to the global state
 	State* newstate = new State();
 	newstate->MakeCurrent();
-
-
+	
 	if(!memcmp(temp,"NESSTses",8)) ver=1;//load legacy binary format
 	if(!memcmp(temp,"NSTses00",8)) ver=2;//load old binary format
 	if(!memcmp(temp,sessionIDStr,8)) ver=3;//current text format
@@ -4214,7 +4352,6 @@ bool __fastcall TFormMain::LoadSession(AnsiString filename)
 		UpdateTiles(true);
 		UpdateNameTable(-1,-1,true);
 		//if (FormNavigator->Visible) FormNavigator->Draw(true,true);
-
 		// Load was sucessful, so we drop the old state info and make new ones
 		if (state)
 			delete state;
@@ -4224,10 +4361,9 @@ bool __fastcall TFormMain::LoadSession(AnsiString filename)
 		state = newstate;
 		checkpoint = new State();
 		state->CopyCurrentState();
-
 		return true;
 	}
-
+	
 	// load was unsuccessful so delete the new state to prevent memory leaks
 	delete newstate;
 	Application->MessageBox("Unknown or corrupted session data format","Error",MB_OK);
@@ -4329,18 +4465,38 @@ void __fastcall TFormMain::SaveSession(AnsiString filename)
 
 	//arrays
 
-	nss_put_bytes(file,"\n\nPalette="  ,bgPal        ,BG_PAL_SIZE);
+	nss_put_bytes(file,"\n\nPalette="  ,bgPal        ,sizeof(bgPal));
+//	nss_put_bytes(file,"\n\nPalUndo="  ,bgPalUndo    ,sizeof(bgPalUndo));
 
-	nss_put_bytes(file,"\n\nCHRMain="  ,chr          ,CHR_SIZE);
-	nss_put_bytes(file,"\n\nCHRCopy="  ,chrCopy      ,CHR_SIZE);
+	nss_put_bytes(file,"\n\nCHRMain="  ,chr          ,sizeof(chr));
+	nss_put_bytes(file,"\n\nCHRCopy="  ,chrCopy      ,sizeof(chrCopy));
+//	nss_put_bytes(file,"\n\nCHRUndo="  ,undoChr      ,sizeof(undoChr));
 
-	nss_put_bytes(file,"\n\nNameTable=",nameTable    ,state->curr->NameSize());
-	nss_put_bytes(file,"\n\nNameCopy=" ,nameCopy     ,state->curr->NameSize());
+	nss_put_bytes(file,"\n\nNameTable=",nameTable    ,name_size());
+	nss_put_bytes(file,"\n\nNameCopy=" ,nameCopy     ,name_size());
+//	nss_put_bytes(file,"\n\nNameUndo=" ,undoNameTable,name_size());
 
-	nss_put_bytes(file,"\n\nAttrTable=",attrTable    ,state->curr->AttrSize());
-	nss_put_bytes(file,"\n\nAttrCopy=" ,attrCopy     ,state->curr->AttrSize());
+	nss_put_bytes(file,"\n\nAttrTable=",attrTable    ,attr_size());
+	nss_put_bytes(file,"\n\nAttrCopy=" ,attrCopy     ,attr_size());
+//	nss_put_bytes(file,"\n\nAttrUndo=" ,undoAttrTable,attr_size());
 
-	nss_put_bytes(file,"\n\nMetaSprites=",metaSprites,METASPRITES_SIZE);
+	nss_put_bytes(file,"\n\nMetaSprites=",metaSprites,sizeof(metaSprites));
+
+	//checkpoint data
+
+//	nss_put_bytes(file,"\n\nCheckpoint_Palette="  ,bgPalCheckpoint 		,sizeof(bgPal));
+//	nss_put_bytes(file,"\n\nCheckpoint_PalUndo="  ,bgPalUndoCheckPoint  ,sizeof(bgPalUndo));
+
+//	nss_put_bytes(file,"\n\nCheckpoint_CHRMain="  ,checkpointChr          ,sizeof(chr));
+//	nss_put_bytes(file,"\n\nCheckpoint_CHRUndo="  ,undoCheckpointChr      ,sizeof(undoChr));
+
+//	nss_put_bytes(file,"\n\nCheckpoint_NameTable=",checkpointNameTable    ,name_size());
+//	nss_put_bytes(file,"\n\nCheckpoint_NameUndo=" ,undoCheckpointNameTable,name_size());
+
+//	nss_put_bytes(file,"\n\nCheckpoint_AttrTable=",checkpointAttrTable    ,attr_size());
+//	nss_put_bytes(file,"\n\nCheckpoint_AttrUndo=" ,undoCheckpointAttrTable,attr_size());
+
+//	nss_put_bytes(file,"\n\nCheckpoint_MetaSprites=",checkpointMetaSprites,sizeof(metaSprites));
 
 	//BROKE STUDIO
 	for(i=0;i<256;i++)
@@ -4570,6 +4726,11 @@ void __fastcall TFormMain::SaveConfig()
 	fprintf(file,"Tile threshold=%i\n"				,MImportThreshold	->Checked?1:0);
 	fprintf(file,"Without colour data=%i\n"			,MImportNoColorData	->Checked?1:0);
 
+	fprintf(file,"\nPalette text export:\n");
+	fprintf(file,"---------------------------------------------------------\n");
+	fprintf(file,"Include filename in palette label=%i\n"			,bExportPalFilename?1:0);
+	fprintf(file,"Include set in palette label=%i\n"				,bExportPalSet?1:0);
+
 
 	fprintf(file,"\nAdvanced preferences:\n");
 	fprintf(file,"---------------------------------------------------------\n");
@@ -4707,6 +4868,8 @@ bool __fastcall TFormMain::LoadConfig()
 	prefStartShowCHR		=nss_get_bool(text,size,"Show CHR editor=");
 	prefStartShowMM			=nss_get_bool(text,size,"Show Metasprite manager=");
 
+	bExportPalFilename		=nss_get_bool(text,size,"Include filename in palette label=");
+	bExportPalSet           =nss_get_bool(text,size,"Include set in palette label=");
 
 	SpeedButtonGridTile		->Down=nss_get_bool(text,size,"Grid x1=");
 	SpeedButtonGridAtr		->Down=nss_get_bool(text,size,"Grid x2=");
@@ -5483,7 +5646,7 @@ void __fastcall TFormMain::RemoveDoublesUnused(bool unused)
 					if(sweepNT) {
 						for(j=0;j<nameTableWidth*nameTableHeight;++j) if(nameTable[j]==i) ++used;}
 					if(sweepMS) {
-						for(j=0;j<256*64*4;j+=4) //added an exception for sprites with an Y of FF since thatï¿½s used to imply nonexistence. 
+						for(j=0;j<256*64*4;j+=4) //added an exception for sprites with an Y of FF since that´s used to imply nonexistence. 
 							if(metaSprites[j+1]==i && metaSprites[j]!=0xFF) ++used;}
 				}
 
@@ -5630,7 +5793,7 @@ void __fastcall TFormMain::CorrectView(void)
 	else
 	{
 
-		if(nameTableViewY>=nameTableHeight-30) nameTableViewY=nameTableHeight-30;  //was 32, but led to a bug where you couldnï¿½ scroll to the last portion of the map in some cases.
+		if(nameTableViewY>=nameTableHeight-30) nameTableViewY=nameTableHeight-30;  //was 32, but led to a bug where you couldn´ scroll to the last portion of the map in some cases.
         if(nameTableViewY<0) nameTableViewY=0;
 	}
 }
@@ -6079,7 +6242,7 @@ void __fastcall TFormMain::UpdateUIScale(void)
 	}
 	else
 	{
-		//i donï¿½t like this fix, (having to update these in sequence), but it works.
+		//i don´t like this fix, (having to update these in sequence), but it works.
 		//mean to replace it for a sounder update routine eventually.
 
 		//PageControlEditor->ActivePage=TabSheetName;   //temporarily pretend this tab is open
@@ -6245,7 +6408,7 @@ void __fastcall TFormMain::UpdateUIScale(void)
 		GroupBoxMetaSprite->Width		=(GroupMetaSprWdt/2)*uiScale;
 		if(uiScale==4) GroupBoxMetaSprite->Width=GroupBoxMetaSprite->Width-64;
 		//rightmost tile of the canvas gets cropped out.
-		//-32 gets all in but i donï¿½t want to bother with making a special case
+		//-32 gets all in but i don¨t want to bother with making a special case
 		//for the sprite list + buttons right now.
 		
 		GroupBoxMetaSprite->Height		=GroupMetaSprHgt;
@@ -6281,7 +6444,6 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	int i,pp;
 	unsigned char buf[192];
 	AnsiString dir,name,spr;
-
 	state = new State();
 	checkpoint = new State();
 	state->MakeCurrent();
@@ -6420,26 +6582,29 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	memset(nameTable  ,0  ,state->curr->NameSize());
 	memset(attrTable  ,0  ,state->curr->AttrSize());
 	memset(chr        ,0  ,CHR_SIZE);
-	memset(chrCopy    ,0  ,CHR_SIZE);
+	memset(chrCopy    ,0  ,sizeof(chrCopy));
 	memset(metaSprites,255,METASPRITES_SIZE);
 	memset(metaSpriteCopy,255,sizeof(metaSpriteCopy));
 
 	dir=ParamStr(0).SubString(0,ParamStr(0).LastDelimiter("\\/"));
-	globalDir=dir;
+    globalDir=dir;
 	file=fopen((dir+"nes.pal").c_str(),"rb");
 
-	if(file && get_file_size(file)==192)
+	if(file)
 	{
-		Externalnespal1->Checked=true;
-		fread(buf,192,1,file);
-		fclose(file);
-
-		pp=0;
-
-		for(i=0;i<64;i++)
+		if(get_file_size(file)==192)
 		{
-			basePalette[i]=(buf[pp+2]<<16)|(buf[pp+1]<<8)|buf[pp];
-			pp+=3;
+			Externalnespal1->Checked=true;
+			fread(buf,192,1,file);
+			fclose(file);
+
+			pp=0;
+
+			for(i=0;i<64;i++)
+			{
+				basePalette[i]=(buf[pp+2]<<16)|(buf[pp+1]<<8)|buf[pp];
+				pp+=3;
+			}
 		}
 	}
 	else
@@ -6510,6 +6675,8 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	SetCurrentDirectory(dir.c_str());
 	openByFileDone=true;
 
+	SetUndo();
+
 	unsavedChanges=false;
 	//Savesession1->Enabled=false;      //no reason not to let the user save if save knows to redirect to save as. 
 	//FG menu check items init
@@ -6534,6 +6701,9 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 		bWarnMsprYellow=true;
 		bWarnMsprOrange=false;
 		bWarnMsprRed=true;
+
+		bExportPalFilename=true;
+		bExportPalSet=true;
 
 		iGlobalAlpha=FAC_ALPHA;
 		iRadioOpenSave=1;
@@ -6566,9 +6736,6 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 
 	metaSpriteBankName=RemoveExt(ExtractFileName(SaveDialogSession->FileName)); //
 	UpdateUIScale();
-
-	// After we've populated the initial data, don't create a patch, just copy it to the previous field
-	state->CopyCurrentState();
 }
 //---------------------------------------------------------------------------
 
@@ -6904,6 +7071,18 @@ TMouseButton Button, TShiftState Shift, int X, int Y)
 	int tx=X/(8*uiScale);
 	int ty=Y/(8*uiScale);
 
+    if(MCHRFindDoubles->Checked)
+	{
+		MCHRFindDoubles->Checked=false;
+		MCHRFindDoubles->Caption="Find &duplicates";
+	}
+
+	if(MCHRFindUnused->Checked)
+	{
+		MCHRFindUnused->Checked=false;
+		MCHRFindUnused->Caption="Find &unused";
+	}
+
 	//---
 
 	//added here in addition to keydown and keyup.
@@ -6918,7 +7097,7 @@ TMouseButton Button, TShiftState Shift, int X, int Y)
 		else if (bImageTileAccepted) 	cueUpdateTiles=true;
 		//this is for any other case. Probably redundant for now.
 
-		//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if thereï¿½s a legitimate use.
+		//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if there´s a legitimate use.
 	}
 	//---
 	
@@ -7265,7 +7444,7 @@ TShiftState Shift, int X, int Y)
 	{
 		//potential future feature: put the below tasks here but have them be
 		//legal only for a !modulo of the copy w/h.
-		//Right now theyï¿½re in the MouseDown event.
+		//Right now they´re in the MouseDown event.
         SetUndo();
 		//set selection
 		nameSelection.left  =nx;
@@ -7546,7 +7725,7 @@ int X, int Y)
 				{
 					FormCHREditor->Fill(Shift,px,py,extpp); //tempPal,fillPal
 				}
-			}   //<--this loop end works for drawing just one tile. This method (nametable painting) currently doesnï¿½t allow brushes crossing tile borders
+			}   //<--this loop end works for drawing just one tile. This method (nametable painting) currently doesn´t allow brushes crossing tile borders
 
 			//remove doubles to current tile
 			if(SpeedButtonAutocreate->Down)       
@@ -8066,7 +8245,7 @@ bool bDoUpdate;
 		else if (bImageTileAccepted) 	cueUpdateTiles=true;
 		//this is for any other case. Probably redundant for now.
 
-		//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if thereï¿½s a legitimate use.
+		//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if there´s a legitimate use.
 	}
 
 
@@ -8091,8 +8270,8 @@ bool bDoUpdate;
 
 
 		if(!SpeedButtonTypeIn->Down||(nameSelection.left<0&&nameSelection.top<0))
-			if(Key=='T') {TypeInModeOnOff1Click(TypeInModeOnOff1); --nameSelection.left;}
-			//^the --nameSelection counters the automatic forward-counting when typing. Instead of solving the root cause i did this. 
+			if(Key=='T') {bIgnoreKey=true; TypeInModeOnOff1Click(TypeInModeOnOff1);}
+			
 
 		if(!SpeedButtonTypeIn->Down)
 		{
@@ -8136,7 +8315,7 @@ bool bDoUpdate;
 	{
 		if(Shift.Contains(ssAlt))
 		{
-			if(Key==VK_BACK) FillMap();
+			if(Key==VK_BACK) FillMap(false);
 		}
 
 	}
@@ -8358,9 +8537,7 @@ void __fastcall TFormMain::FormDestroy(TObject *Sender)
 {
     delete BufBmpName;
 	delete BufBmpTiles;
-	delete state;
-	delete checkpoint;
-	
+
 	char path[MAX_PATH];
 	int len;
 
@@ -8373,7 +8550,7 @@ void __fastcall TFormMain::ImageNameMouseLeave(TObject *Sender)
 {
 
 	//TODO: look into maxing the selection on the given axis here
-	//hereï¿½s some copypasta to remember variable names by
+	//here´s some copypasta to remember variable names by
 	/*
 	if(mouseDraggedNTSel==true)
 	{
@@ -8443,7 +8620,7 @@ TShiftState Shift, int X, int Y)
 		if(FormCHREditor->btnQuant->Down){px=px&14;pp=pp&0x1FFE;}
 		mask=128>>px;
 
-		//if thereï¿½s a selection larger than 1x1, only allow drawing within it.
+		//if there´s a selection larger than 1x1, only allow drawing within it.
 		if(abs(chrSelection.left-chrSelection.right)>1||abs(chrSelection.top-chrSelection.bottom)>1)
 		{
 			if(chrSelectRect
@@ -8686,7 +8863,7 @@ TShiftState Shift, int X, int Y)
 		}  //
 		for(i=0;i<256;i++) chrSelected[i]=false;
 
-					//some of this is probably unwarranted now that thereï¿½s no inverted selection weirdness anymore. Keeping it for redundancy.
+					//some of this is probably unwarranted now that there´s no inverted selection weirdness anymore. Keeping it for redundancy.
 					//--------------
 					xs=chrSelection.left<chrSelection.right ?chrSelection.left:chrSelection.right;
 					ys=chrSelection.top <chrSelection.bottom?chrSelection.top :chrSelection.bottom;
@@ -8868,9 +9045,17 @@ void __fastcall TFormMain::MCHRSwapColorsClick(TObject *Sender)
 {
 	bool swap[256*2];
 	int i,j,k,pp,col,bit;
+	int ib, is, bankOff;
 	unsigned char paltemp[4];
 
+
+
+	memcpy (chrBuf, chr, 4096*2);    //prep buffer so we can perform previews
+	memcpy (palBuf, bgPal, 4*16);
 	FormSwapColors->ShowModal();
+
+	memcpy (chr, chrBuf, 4096*2);  // restore.
+	memcpy (bgPal, palBuf, 4*16);
 
 	if(FormSwapColors->Swap)
 	{
@@ -8917,14 +9102,26 @@ void __fastcall TFormMain::MCHRSwapColorsClick(TObject *Sender)
 
 		if(FormSwapColors->RemapPalette)
 		{
-			for(i=0;i<4;i++)
-			{
-				for(j=0;j<4;j++) paltemp[FormSwapColors->Map[j]]=bgPal[palBank*16+i*4+j];
-
-				for(j=0;j<4;j++) bgPal[palBank*16+i*4+j]=paltemp[j];
-			}
+			if(FormSwapColors->RadioPalOne->Checked) {ib=iSwap_WhichSubpal; is=1; bankOff=palBank;}
+					else if(FormSwapColors->RadioPalAll->Checked) {ib=0; is=4*4; bankOff=0;}
+					else {ib=0;is=4;bankOff=palBank;}
+					for(i=ib;i<is+ib;i++)
+					{
+						for(j=0;j<4;j++) paltemp[j]=bgPal[bankOff*16+i*4+FormSwapColors->Map[j]];
+						for(j=0;j<4;j++) bgPal[bankOff*16+i*4+j]=paltemp[j];
+					}
 		}
+		if(sharedCol0)
+		{
+			//this overrides the results of pal_validate by overwriting its input
 
+			col=bgPal[palBank*16+iSwap_Pal0Subpal*4+0];
+
+			bgPal[palBank*16+0*4+0]=col;
+			bgPal[palBank*16+1*4+0]=col;
+			bgPal[palBank*16+2*4+0]=col;
+			bgPal[palBank*16+3*4+0]=col;
+		}
 		pal_validate();
 
 		UpdateTiles(true);
@@ -10209,7 +10406,7 @@ void __fastcall TFormMain::FormKeyPress(TObject *Sender, char &Key)
 {
 	if(SpeedButtonTypeIn->Down)
 	{
-		if(Key>=32)
+		if(Key>=32 && !bIgnoreKey)
 		{
 			NameTableTypeIn(Key-typeInASCIIOffset);
             cueUpdateNametable=true;
@@ -11398,7 +11595,7 @@ int X, int Y, TDragState State, bool &Accept)
 				}
 
 		}
-        //old behaviour. Now redundancies but letï¿½s keep them.
+        //old behaviour. Now redundancies but let´s keep them.
 		else if(b)
 		{
             destRect.left=tileXC;
@@ -11425,7 +11622,7 @@ int X, int Y, TDragState State, bool &Accept)
 void __fastcall TFormMain::ImageTilesDragDrop(TObject *Sender, TObject *Source,
 int X, int Y)
 {
-	//If same src and dest, exit & donï¿½t set Undo.
+	//If same src and dest, exit & don´t set Undo.
 	if(destRect.left==chrSelection.left&&destRect.top==chrSelection.top) return;
 
 	unsigned char tempchr[16];
@@ -11692,15 +11889,44 @@ void __fastcall TFormMain::MPutPaletteToClipboardASMClick(TObject *Sender)
 	char str[1024],buf[1024];
 	int i,j;
 
-	if(byte1->Checked) strcpy(str,".byte ");
-    if(db1->Checked)   strcpy(str,".db ");
+	//if(byte1->Checked) strcpy(str,".byte ");
+	//if(db1->Checked)   strcpy(str,".db ");
+	//sprintf(str,"palette:\n");
+	AnsiString name;
+	AnsiString bank;
+	name=RemoveExt(ExtractFileName(SaveDialogSession->FileName));
+
+	switch (palBank) {
+	case 0: bank="a"; break;
+	case 1: bank="b"; break;
+	case 2: bank="c"; break;
+	case 3: bank="d"; break;
+
+	default: bank="a";
+	}
+
+	if((bExportPalFilename)&&(bExportPalSet))
+		sprintf(str,"palette_%s_%s:\n",name.c_str(),bank.c_str());
+	else if (bExportPalFilename)
+		sprintf(str,"palette_%s:\n",name.c_str());
+	else if (bExportPalSet)
+		sprintf(str,"palette_%s:\n",bank.c_str());
+	else
+		sprintf(str,"palette:\n");
+
+
+
+
 
 	for(i=0;i<4;i++)
 	{
+		if(byte1->Checked) sprintf(buf,".byte ");
+		if(db1->Checked)   sprintf(buf,".db ");
+        strcat(str,buf);
 		for(j=0;j<4;j++)
 		{
-			sprintf(buf,"$%2.2x%c",bgPal[palBank*16+i*4+j],i*4+j<15?',':'\n');
-
+			//sprintf(buf,"$%2.2x%c",bgPal[palBank*16+i*4+j],i*4+j<15?',':'\n');
+			sprintf(buf,"$%2.2x%c",bgPal[palBank*16+i*4+j],j<3?',':'\n');
 			strcat(str,buf);
 		}
 	}
@@ -11713,8 +11939,29 @@ void __fastcall TFormMain::MPutPaletteToClipboardCClick(TObject *Sender)
 {
 	char str[1024],buf[1024];
 	int i,j;
+	AnsiString name;
+	AnsiString bank;
+	name=RemoveExt(ExtractFileName(SaveDialogSession->FileName));
 
-	strcpy(str,"const unsigned char palette[16]={ ");
+	switch (palBank) {
+	case 0: bank="a"; break;
+	case 1: bank="b"; break;
+	case 2: bank="c"; break;
+	case 3: bank="d"; break;
+
+	default: bank="a";
+	}
+
+	
+	//strcpy
+	if((bExportPalFilename)&&(bExportPalSet))
+		sprintf(str,"const unsigned char palette_%s_%s[16]={ ",name.c_str(),bank.c_str());
+	else if (bExportPalFilename)
+		sprintf(str,"const unsigned char palette_%s[16]={ ",name.c_str());
+	else if (bExportPalSet)
+		sprintf(str,"const unsigned char palette_%s[16]={ ",bank.c_str());
+	else
+		sprintf(str,"const unsigned char palette[16]={ ");
 
 	for(i=0;i<4;i++)
 	{
@@ -12227,6 +12474,7 @@ void __fastcall TFormMain::MNameTableNewClick(TObject *Sender)
 
 	//SetUndo();
 	UpdateAll();
+	if(FormNavigator->Height > GetSystemMetrics(SM_CYFULLSCREEN)) FormNavigator->Height  = GetSystemMetrics(SM_CYFULLSCREEN) + 10;
 }
 //---------------------------------------------------------------------------
 
@@ -12269,7 +12517,7 @@ void __fastcall TFormMain::MSaveMapClick(TObject *Sender)
 		{
 			//
 			if(bRLE){
-				buf=(unsigned char*)malloc(state->curr->NameSize()+state->curr->AttrSize());
+				buf=(unsigned char*)malloc(state->curr->NameSize() + state->curr->AttrSize());
 				int size=0;
 
 				if(MSaveIncName->Checked)
@@ -13394,8 +13642,7 @@ void __fastcall TFormMain::Setcheckpoint1Click(TObject *Sender)
 //
 //    undoCheckpointSpriteGridX  =  undoSpriteGridX;
 //	undoCheckpointSpriteGridY  =  undoSpriteGridY;
-
-	(*checkpoint) = (*state);
+//
 
 }
 
@@ -13474,9 +13721,9 @@ void __fastcall TFormMain::Reverttocheckpoint1Click(TObject *Sender)
 //
 //	tmp = undoSpriteGridX;  undoSpriteGridX = undoCheckpointSpriteGridX;	undoCheckpointSpriteGridX=tmp;
 //	tmp = undoSpriteGridY;  undoSpriteGridY = undoCheckpointSpriteGridY;    undoCheckpointSpriteGridY=tmp;
-
-    (*state) = (*checkpoint);
-	UpdateAll();
+//
+//
+//	UpdateAll();
 
 
 }
@@ -13545,6 +13792,7 @@ void __fastcall TFormMain::FormKeyUp(TObject *Sender, WORD &Key,
 {
 		clickV=false;
 		clickC=false;
+		bIgnoreKey=false;
 		bBufCtrl=Shift.Contains(ssCtrl)?true:false;
 		bBufShift=Shift.Contains(ssShift)?true:false;
 		bBufAlt=Shift.Contains(ssAlt)?true:false;
@@ -13556,7 +13804,7 @@ void __fastcall TFormMain::FormKeyUp(TObject *Sender, WORD &Key,
 			else if (bImageTileAccepted) 	cueUpdateTiles=true;
 			//this is for any other case. Probably redundant for now.
 
-			//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if thereï¿½s a legitimate use.
+			//else{cueUpdateNametable=true; cueUpdateTiles=true;}  //include if there´s a legitimate use.
 		}
 }
 //---------------------------------------------------------------------------
@@ -13621,7 +13869,17 @@ void __fastcall TFormMain::SelectAll1Click(TObject *Sender)
 		chrSelection.left	= 0;
 		chrSelection.right	= 16;
 		chrSelection.bottom	= 16;
+        if(MCHRFindDoubles->Checked)
+		{
+			MCHRFindDoubles->Checked=false;
+			MCHRFindDoubles->Caption="Find &duplicates";
+		}
 
+		if(MCHRFindUnused->Checked)
+		{
+			MCHRFindUnused->Checked=false;
+			MCHRFindUnused->Caption="Find &unused";
+		}
 	}
 	UpdateAll();
 }
@@ -13652,6 +13910,17 @@ void __fastcall TFormMain::Deselect1Click(TObject *Sender)
 		chrSelection.left	= 0;
 		chrSelection.right	= 1;
 		chrSelection.bottom	= 1;
+	}
+	if(MCHRFindDoubles->Checked)
+	{
+		MCHRFindDoubles->Checked=false;
+		MCHRFindDoubles->Caption="Find &duplicates";
+	}
+
+	if(MCHRFindUnused->Checked)
+	{
+		MCHRFindUnused->Checked=false;
+		MCHRFindUnused->Caption="Find &unused";
 	}
 	UpdateAll();
 }
@@ -13991,7 +14260,7 @@ void __fastcall TFormMain::Externalnespal1Click(TObject *Sender)
 	}
 	else
 	{
-		Application->MessageBox("Couldnï¿½t find ext pal.\n Palette set to NESST classic.","Error",MB_OK);
+		Application->MessageBox("Couldn´t find ext pal.\n Palette set to NESST classic.","Error",MB_OK);
 		NESSTclassic1->Checked=true;       //todo: maybe allow for a few internal palette preference choices.
 		pp=0;
 
@@ -14276,8 +14545,8 @@ void __fastcall TFormMain::FormMouseUp(TObject *Sender, TMouseButton Button,
 
 void __fastcall TFormMain::Fill1Click(TObject *Sender)
 {
-    if(!(PageControlEditor->ActivePage==TabSheetName)) return; //redunancy 
-	if(!(nameSelection.left<0&&nameSelection.top<0)) FillMap();
+	if(!(PageControlEditor->ActivePage==TabSheetName)) return; //redunancy
+	if(!(nameSelection.left<0&&nameSelection.top<0)) FillMap(false);
 }
 //---------------------------------------------------------------------------
 
@@ -14622,7 +14891,7 @@ void __fastcall TFormMain::SpeedButtonDrawTileMouseEnter(TObject *Sender)
 
 void __fastcall TFormMain::btnCHReditMouseEnter(TObject *Sender)
 {
-	LabelStats->Caption="Opens CHR editor. Itï¿½s the main utility for detailed tile work.";
+	LabelStats->Caption="Opens CHR editor. It´s the main utility for detailed tile work.";
 }
 //---------------------------------------------------------------------------
 
@@ -15438,7 +15707,7 @@ void __fastcall TFormMain::PPUdump1Click(TObject *Sender)
 						fread(bgPal,32,1,file);
 					 }
 
-					 //PPU OAM goes here when thereï¿½s something actually using raw oam.
+					 //PPU OAM goes here when there´s something actually using raw oam.
 					 /*
 						 if (ext=="ppumem")
 						 {
@@ -15484,6 +15753,7 @@ void __fastcall TFormMain::NameLinesTimerTimer(TObject *Sender)
 	}
 }
 //---------------------------------------------------------------------------
+
 
 
 

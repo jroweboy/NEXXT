@@ -25,6 +25,7 @@ __published:
 	TButton *btnTwitter;
 	TButton *btnPatreon;
 	TButton *btnShiru;
+	TButton *Button1;
 	void __fastcall FormShow(TObject *Sender);
 	void __fastcall OKButtonClick(TObject *Sender);
 	void __fastcall btnItchClick(TObject *Sender);
@@ -32,6 +33,7 @@ __published:
 	void __fastcall btnShiruClick(TObject *Sender);
 	void __fastcall btnTwitterClick(TObject *Sender);
 	void __fastcall btnPatreonClick(TObject *Sender);
+	void __fastcall Button1Click(TObject *Sender);
 private:
 public:
 	virtual __fastcall TAboutBox(TComponent* AOwner);

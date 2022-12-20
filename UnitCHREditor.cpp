@@ -7,7 +7,6 @@
 #include "UnitCHREditor.h"
 #include "UnitBrush.h"
 #include "UnitState.h"
-
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 #pragma resource "*.dfm"
