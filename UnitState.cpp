@@ -6,6 +6,9 @@
 
 #include <algorithm>
 #include <memory.h>
+#include <iostream>
+#include <sstream>
+
 #include "UnitState.h"
 
 //---------------------------------------------------------------------------
@@ -79,16 +82,29 @@ void State::MakeCurrent() {
 void State::SetUndo() {
     std::vector<u8> patch;
 
-    // Since we are setting a new history item, if we aren't at the end of the list,
-    // we want to clear out all of the items from the current point to the end.
-    if (undoIndex < undoHistory.size()) {
-        undoHistory.erase(undoHistory.begin() + undoIndex, undoHistory.end());
-    }
 
     for (u32 i = 0; i < curr->fields.size(); ++i) {
         ValueSerialize::Interface* current = curr->fields[i];
         ValueSerialize::Interface* previous = prev->fields[i];
         current->CreateDiff(patch, previous);
+    }
+
+    // if the patch is empty, then theres no changes and no need to save this item
+    bool hasData = false;
+    for (u32 i = 0; i < patch.size(); ++i) {
+        if (patch[i] != 0) {
+            hasData = true;
+            break;
+        }
+    }
+    if (!hasData) {
+        return;
+    }
+
+    // Since we are setting a new history item, if we aren't at the end of the list,
+    // we want to clear out all of the items from the current point to the end.
+    if (undoIndex < undoHistory.size()) {
+        undoHistory.erase(undoHistory.begin() + undoIndex, undoHistory.end());
     }
 
     std::vector<u8> rle_patch;
@@ -101,18 +117,13 @@ void State::SetUndo() {
     // and now bump the index forward so we know "where" in the undo history we are.
     // we can use this to allow multiple undo and redo in a row
     undoIndex++;
-    
-    hasChanges = true;
 }
 
 void State::Undo(u32 count) {
     // Before we undo, we need to SetUndo once in order to copy the data that has been changed.
     // This is because when a field is changed, the order of operations is SetUndo() -> Update field
     // so in order to undo the latest changes, we need to create the diff in SetUndo before then.
-    if (hasChanges) {
-        SetUndo();
-        hasChanges = false;
-    }
+    SetUndo();
 
     // Now load the history item, and apply the patch to the current data
     while ((count > 0) && undoIndex > 0) {
@@ -168,6 +179,7 @@ void State::ApplyStateChange(const std::vector<u8>& patch) {
         ValueSerialize::Interface* current = curr->fields[i];
         current->ApplyDiff(patch, patchIdx);
     }
+    CopyCurrentState();
 }
 
 std::size_t State::OutputRLEbyte(std::vector<u8>& out, u8 value, u8 count) const {
@@ -243,6 +255,33 @@ void State::CopyCurrentState() {
     prev->spriteGridX = curr->spriteGridY;
     for (u32 i = 0; i < 256; ++i) {
         prev->metaSpriteNames[i] = curr->metaSpriteNames[i];
+    }
+}
+
+void State::PrintStack() const {
+    static const AnsiString names[10] = {
+        "bgPal",
+        "chr",
+        "metaSprites",
+        "nameTableWidth",
+        "nameTableHeight",
+        "spriteGridX",
+        "spriteGridY",
+        "nameTable",
+        "attrTable",
+        "metaSpriteNames"
+    };
+    for (int i = undoIndex-1; i >= 0 ; --i) {
+        std::vector<u8> unrle_patch;
+        UnRLE(unrle_patch, undoHistory[i]);
+        std::size_t patchIdx = 0;
+        std::cout << std::endl << "Inspecting undoHistory[" << i << "]" << std::endl;
+        for (int j = 0; j < curr->fields.size(); ++j) {
+            ValueSerialize::Interface* current = curr->fields[j];
+            ValueSerialize::Interface* previous = prev->fields[j];
+            current->InspectPatch(unrle_patch, patchIdx, std::cout);
+        }
+
     }
 }
 
@@ -336,7 +375,7 @@ void test_palette() {
     // Set all of the values to each palette to their index number in one history item
     // History should contain for bgPal[2] = {0x00, 0x10, 0x02};
     state->SetUndo();
-    for (int i = 0; i < BG_PAL_SIZE; i++) {
+    for (int i = 0; i < 4; i++) {
         bgPal[i] = i & 0xff;
     }
     TEST_CHECK_(bgPal[2] == 0x02, "Palette should be set to 0x02: %d expected: 0x02 ", bgPal[2]);
@@ -351,42 +390,53 @@ void test_palette() {
     TEST_CHECK_(bgPal[2] == 0x10, "Palette should be set back to previous value of 0x10 after one Undo: 0x%02x expected: 0x10 ", bgPal[2]);
 
     state->Redo(1); // check that palette values 
-    for (int i = 0; i < BG_PAL_SIZE; i++) {
+    for (int i = 0; i < 4; i++) {
         TEST_CHECK_(bgPal[i] == i, "Palette current value should equal its index: 0x%02x expected: 0x%02x ", bgPal[i], i);
     }
     
     // Check that if you undo, and then edit, and then undo that it properly undos the recent changesstate->SetUndo();
+    // Current state: (0x01, 0x02, 0x03)
     state->SetUndo();
     bgPal[1] = 0x14;
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03)
     state->SetUndo();
     bgPal[2] = 0x24;
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x14, 0x24, 0x03)
     state->SetUndo();
     bgPal[3] = 0x34;
 
-    // (0x14, 0x24, 0x34) -> undo(1): (0x14, 0x24, 0x03) -> undo(1): (0x14, 0x02, 0x03)
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x14, 0x24, 0x03) -> (0x14, 0x24, 0x34)
     state->Undo(2);
-    TEST_CHECK_(bgPal[2] == 0x02, "Palette[1] should be edited value after two Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x14);
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03)
+    TEST_CHECK_(bgPal[1] == 0x14, "Palette[1] should be edited value after two Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x14);
     TEST_CHECK_(bgPal[2] == 0x02, "Palette[2] should be reverted to index value after two Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
     TEST_CHECK_(bgPal[3] == 0x03, "Palette[3] should be reverted to index value after two Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
 
+    state->SetUndo();
     bgPal[1] = 0x81;
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x81, 0x02, 0x03)
     state->SetUndo();
     bgPal[2] = 0x92;
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x81, 0x02, 0x03) -> (0x81, 0x92, 0x03)
     state->SetUndo();
     bgPal[3] = 0xa3;
 
+    // Undo state when calling undo: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x81, 0x02, 0x03) -> (0x81, 0x92, 0x03) -> (0x81, 0x92, 0xa3)
     state->Undo(1);
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x81, 0x02, 0x03) -> (0x81, 0x92, 0x03)
     TEST_CHECK_(bgPal[1] == 0x81, "Palette 1 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x81);
     TEST_CHECK_(bgPal[2] == 0x92, "Palette 2 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x92);
     TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
 
     state->Undo(1);
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03) -> (0x81, 0x02, 0x03)
     TEST_CHECK_(bgPal[1] == 0x81, "Palette 1 should be unchanged after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x81);
     TEST_CHECK_(bgPal[2] == 0x02, "Palette 2 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
     TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
 
     state->Undo(1);
-    TEST_CHECK_(bgPal[1] == 0x01, "Palette 1 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x01);
+    // Current state: (0x01, 0x02, 0x03) -> (0x14, 0x02, 0x03)
+    TEST_CHECK_(bgPal[1] == 0x14, "Palette 1 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[1], 0x01);
     TEST_CHECK_(bgPal[2] == 0x02, "Palette 2 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[2], 0x02);
     TEST_CHECK_(bgPal[3] == 0x03, "Palette 3 should be reverted after Undo: 0x%02x expected: 0x%02x ", bgPal[3], 0x03);
 }

@@ -110,16 +110,16 @@ public:
         Values() : bgPal(), chr(), metaSprites(), nameTableWidth(32), nameTableHeight(30),
             spriteGridX(0), spriteGridY(0), nameTable(), attrTable(), metaSpriteNames(), fields() {
             using namespace ValueSerialize;
-            fields.push_back(new Fixed<u8, BG_PAL_SIZE>(bgPal));
-            fields.push_back(new Fixed<u8, CHR_SIZE>(chr));
-            fields.push_back(new Fixed<u8, METASPRITES_SIZE>(metaSprites));
-			fields.push_back(new Fixed<s32>(&nameTableWidth));
-            fields.push_back(new Fixed<s32>(&nameTableHeight));
-            fields.push_back(new Fixed<s32>(&spriteGridX));
-            fields.push_back(new Fixed<s32>(&spriteGridY));
-            fields.push_back(new Resizeable<std::vector<u8> >(&nameTable));
-            fields.push_back(new Resizeable<std::vector<u8> >(&attrTable));
-            fields.push_back(new Fixed<AnsiString, METASPRITES_NAME_SIZE>(metaSpriteNames));
+            fields.push_back(new Fixed<u8, BG_PAL_SIZE>("bgPal", bgPal));
+            fields.push_back(new Fixed<u8, CHR_SIZE>("chr", chr));
+            fields.push_back(new Fixed<u8, METASPRITES_SIZE>("metaSprites", metaSprites));
+			fields.push_back(new Fixed<s32>("nameTableWidth", & nameTableWidth));
+            fields.push_back(new Fixed<s32>("nameTableHeight", & nameTableHeight));
+            fields.push_back(new Fixed<s32>("spriteGridX", & spriteGridX));
+            fields.push_back(new Fixed<s32>("spriteGridY", & spriteGridY));
+            fields.push_back(new Resizeable<std::vector<u8> >("nameTable", & nameTable));
+            fields.push_back(new Resizeable<std::vector<u8> >("attrTable", & attrTable));
+            fields.push_back(new Fixed<AnsiString, METASPRITES_NAME_SIZE>("metaSpriteNames", metaSpriteNames));
         }
 
         ~Values() {
@@ -183,6 +183,11 @@ private:
     std::size_t OutputRLEbyte(std::vector<u8>& out, u8 value, u8 count) const;
 
     /**
+     * Custom print method to display a logic change set for the patches to make visually debugging the stack easier
+     */
+    void PrintStack() const;
+
+    /**
      * Stores all of the history items for this undo list. Each Patch contains and RLE encoded
      * diff for each field (or an empty list if there is no change).
      */
@@ -206,6 +211,11 @@ private:
      */
     friend void test_RLE();
     friend void test_grid_sprite();
+    friend void test_weak_ref();
+    friend void test_nametable();
+    friend void test_checkpoint();
+    friend void test_palette();
+    friend void test_metaspritename();
 };
 
 

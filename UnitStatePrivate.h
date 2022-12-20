@@ -3,6 +3,7 @@
 #define _UNIT_STATE_PRIVATE_H
 
 #include <algorithm>
+#include <ostream>
 #include <stdint.h>
 #include <vector>
 
@@ -40,6 +41,23 @@ typedef int32_t  s32;
  * should be used if persistence is required.
  */
 namespace ValueSerialize {
+
+    /**
+     * Basic helper struct and method to easily convert an unsigned char to a hex value when writing to ostream
+     */
+    struct HexCharStruct {
+        unsigned char c;
+        HexCharStruct(unsigned char _c) : c(_c) { }
+    };
+
+    inline std::ostream& operator<<(std::ostream& o, const HexCharStruct& hs) {
+        return (o << std::hex << static_cast<int>(hs.c));
+    }
+
+    inline HexCharStruct hex(unsigned char _c) {
+        return HexCharStruct(_c);
+    }
+
     struct Headers {
         enum HeaderValues {
             EMPTY = 0,
@@ -92,7 +110,7 @@ namespace ValueSerialize {
 
     class Interface {
     public:
-
+        Interface(AnsiString _name) : name(_name) {}
         virtual ~Interface() {}
         virtual void CreateDiff(std::vector<u8>& patch, const Interface* other) const {
             u32 sum = 0;
@@ -156,15 +174,56 @@ namespace ValueSerialize {
             index += patchsize - finallen;
         }
 
+        /**
+         * Debugging helper, given a patch, write the indicies and values have changed
+         */
+        virtual void InspectPatch(const std::vector<u8>& patch, std::size_t& index, std::ostream& out) const {
+            Header header;
+            Read<Header>(patch, &header, index);
+            if (header == Headers::EMPTY) {
+                return;
+            }
+            u32 patchsize;
+            u32 oldlen;
+            u32 newlen;
+            if (header == Headers::FIXED) {
+                Read<u32>(patch, &patchsize, index);
+                oldlen = patchsize;
+                newlen = patchsize;
+            }
+            else {
+                Read<u32>(patch, &patchsize, index);
+                Read<u32>(patch, &oldlen, index);
+                Read<u32>(patch, &newlen, index);
+            }
+
+            u32 finallen = this->GetSize() ^ oldlen ^ newlen;
+            if (oldlen != newlen) {
+                out << "  " << name << " length changed: Oldlen=" << oldlen << " Newlen=" << newlen << " Finallen=" << finallen << std::endl;
+            }
+
+            u8* data = this->GetRawData();
+
+            for (u32 count = 0; count < finallen; ++count) {
+                u8 val = data[count] ^ patch[index++];
+                if (val != data[count]) {
+                    out << "  " << name << "[" << count << "]" << " changed: value=" << hex(data[count]) << " patched=" << hex(val) << std::endl;
+                }
+            }
+            index += patchsize - finallen;
+        }
+
 		virtual inline u8* GetRawData() const = 0;
 		virtual inline u32 GetSize() const = 0;
         virtual inline void Resize(u32 newlen) {};
+
+        AnsiString name;
     };
 
     template <typename T>
     class Resizeable : public Interface {
     public:
-		Resizeable(T* _data) : Interface(), data(_data) {}
+		Resizeable(const AnsiString& name, T* _data) : Interface(name), data(_data) {}
     private:
         T* data;
     };
@@ -172,7 +231,7 @@ namespace ValueSerialize {
     template <>
     class Resizeable<std::vector<u8> > : public Interface {
     public:
-        Resizeable(std::vector<u8>* _data) : Interface(), data(_data) {}
+        Resizeable(const AnsiString& name, std::vector<u8>* _data) : Interface(name), data(_data) {}
 
 		inline u32 GetSize() const { return data->size(); }
 		inline u8* GetRawData() const { return &(*data)[0]; }
@@ -184,7 +243,7 @@ namespace ValueSerialize {
     template<>
     class Resizeable<AnsiString> : public Interface {
     public:
-		Resizeable(AnsiString* _data) : data(_data) {}
+		Resizeable(AnsiString name, AnsiString* _data) : Interface(name), data(_data) {}
 
 		inline u32 GetSize() const { return data->Length(); }
 		inline u8* GetRawData() const { return reinterpret_cast<u8*>(const_cast<char*>(data->c_str())); }
@@ -196,7 +255,7 @@ namespace ValueSerialize {
     template <typename T, u32 Size = sizeof(T)>
     class Fixed : public Interface {
     public:
-        Fixed(T* _data) : Interface(), data(_data) {}
+        Fixed(const AnsiString& name, T* _data) : Interface(name), data(_data) {}
 
 		inline u32 GetSize() const { return Size; }
         inline AnsiString* GetData() const { return data; }
@@ -205,30 +264,39 @@ namespace ValueSerialize {
         T* data;
     };
 
-
+    /**
+     * Template specialization to support a fixed list of Resizable AnsiString
+     */
     template<u32 Size>
     class Fixed<AnsiString, Size> : public Interface {
     public:
-		Fixed(AnsiString* _data) : Interface(), data(_data) {}
+		Fixed(const AnsiString& name, AnsiString* _data) : Interface(name), data(_data) {}
 
 		void CreateDiff(std::vector<u8>& patch, const Interface* other) const {
-            // If we have an inner class as the T type, then we need to loop and call that one instead
+            // The inner type is actually a "resizable" type, an ansistring, so treat it as such when writing to disk.
             for (u32 count = 0; count < Size; ++count) {
                 // This is really nasty, but it could be fixed with some changes.
                 // We just need to get the inner list of AnsiString so we can iterate over them, but we want
                 // to serialize them as Resizeable, so thats why we create a Resizeable out of them
                 const Fixed<AnsiString, Size>* casted = dynamic_cast<const Fixed<AnsiString, Size>* >(other);
                 AnsiString* raw = casted->GetData();
-                Resizeable<AnsiString> left(&data[count]);
-                const Resizeable<AnsiString> right(&raw[count]);
+                Resizeable<AnsiString> left(name + IntToStr(count), & data[count]);
+                const Resizeable<AnsiString> right(name + IntToStr(count), &raw[count]);
                 left.CreateDiff(patch, &right);
             }
         }
-		void ApplyDiff(const std::vector<u8>& patch, std::size_t& index) {
-            // If we have an inner class as the T type, then we need to loop and call that one instead
+        void ApplyDiff(const std::vector<u8>& patch, std::size_t& index) {
+            // The inner type is a resizable, so treat it as such
+            for (u32 count = 0; count < Size; ++count) {
+                Resizeable<AnsiString> self(name + IntToStr(count), &data[count]);
+                self.ApplyDiff(patch, index);
+            }
+        }
+        void InspectPatch(const std::vector<u8>& patch, std::size_t& index, std::ostream& out) {
+            // The inner type is a resizable, so treat it as such
             for (u32 count = 0; count < Size; ++count) {
                 Resizeable<AnsiString> self(&data[count]);
-                self.ApplyDiff(patch, index);
+                self.InspectPatch(patch, index, out);
             }
         }
         inline u32 GetSize() const { return Size; }
