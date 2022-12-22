@@ -6675,7 +6675,9 @@ void __fastcall TFormMain::FormCreate(TObject *Sender)
 	SetCurrentDirectory(dir.c_str());
 	openByFileDone=true;
 
-	SetUndo();
+	// Since we are just loading the base line, this will setup the internal state
+	// without creating an undo history item
+	state->CopyCurrentState();
 
 	unsavedChanges=false;
 	//Savesession1->Enabled=false;      //no reason not to let the user save if save knows to redirect to save as. 

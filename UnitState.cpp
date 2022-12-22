@@ -259,18 +259,6 @@ void State::CopyCurrentState() {
 }
 
 void State::PrintStack() const {
-    static const AnsiString names[10] = {
-        "bgPal",
-        "chr",
-        "metaSprites",
-        "nameTableWidth",
-        "nameTableHeight",
-        "spriteGridX",
-        "spriteGridY",
-        "nameTable",
-        "attrTable",
-        "metaSpriteNames"
-    };
     for (int i = undoIndex-1; i >= 0 ; --i) {
         std::vector<u8> unrle_patch;
         UnRLE(unrle_patch, undoHistory[i]);

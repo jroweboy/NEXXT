@@ -108,17 +108,17 @@ public:
         std::vector<ValueSerialize::Interface*> fields;
 
         Values() : bgPal(), chr(), metaSprites(), nameTableWidth(32), nameTableHeight(30),
-            spriteGridX(0), spriteGridY(0), nameTable(), attrTable(), metaSpriteNames(), fields() {
+            spriteGridX(64), spriteGridY(64), nameTable(), attrTable(), metaSpriteNames(), fields() {
             using namespace ValueSerialize;
             fields.push_back(new Fixed<u8, BG_PAL_SIZE>("bgPal", bgPal));
             fields.push_back(new Fixed<u8, CHR_SIZE>("chr", chr));
             fields.push_back(new Fixed<u8, METASPRITES_SIZE>("metaSprites", metaSprites));
-			fields.push_back(new Fixed<s32>("nameTableWidth", & nameTableWidth));
-            fields.push_back(new Fixed<s32>("nameTableHeight", & nameTableHeight));
-            fields.push_back(new Fixed<s32>("spriteGridX", & spriteGridX));
-            fields.push_back(new Fixed<s32>("spriteGridY", & spriteGridY));
-            fields.push_back(new Resizeable<std::vector<u8> >("nameTable", & nameTable));
-            fields.push_back(new Resizeable<std::vector<u8> >("attrTable", & attrTable));
+			fields.push_back(new Fixed<s32>("nameTableWidth", &nameTableWidth));
+            fields.push_back(new Fixed<s32>("nameTableHeight", &nameTableHeight));
+            fields.push_back(new Fixed<s32>("spriteGridX", &spriteGridX));
+            fields.push_back(new Fixed<s32>("spriteGridY", &spriteGridY));
+            fields.push_back(new Resizeable<std::vector<u8> >("nameTable", &nameTable));
+            fields.push_back(new Resizeable<std::vector<u8> >("attrTable", &attrTable));
             fields.push_back(new Fixed<AnsiString, METASPRITES_NAME_SIZE>("metaSpriteNames", metaSpriteNames));
         }
 
